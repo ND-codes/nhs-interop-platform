@@ -1,0 +1,65 @@
+groups:
+  - name: nhs-interop-golden-signals
+    interval: 30s
+    rules:
+
+      # --- Latency -----------------------------------------------------------
+      - alert: TransformLatencyHigh
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(http_request_duration_seconds_bucket{service="transform"}[5m]))
+          ) > 1.0
+        for: 10m
+        labels:
+          severity: warning
+          team: interop
+        annotations:
+          summary: "transform p95 latency > 1s for 10 minutes"
+          runbook: "docs/runbook.md#transform-latency"
+
+      # --- Traffic (low / dropped) -------------------------------------------
+      - alert: IngestNoTraffic
+        expr: sum(rate(http_requests_total{service="ingest",handler="/hl7"}[10m])) == 0
+        for: 15m
+        labels:
+          severity: warning
+          team: interop
+        annotations:
+          summary: "ingest has not received an HL7 message for 15 minutes"
+          runbook: "docs/runbook.md#ingest-no-traffic"
+
+      # --- Errors ------------------------------------------------------------
+      - alert: TransformErrorRateHigh
+        expr: |
+          sum(rate(http_requests_total{service="transform",status=~"5.."}[5m]))
+            / sum(rate(http_requests_total{service="transform"}[5m]))
+            > 0.02
+        for: 5m
+        labels:
+          severity: critical
+          team: interop
+        annotations:
+          summary: "transform 5xx rate > 2% for 5 minutes"
+          runbook: "docs/runbook.md#transform-errors"
+
+      - alert: DLQRateHigh
+        expr: sum(rate(hl7_dlq_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          team: interop
+        annotations:
+          summary: "HL7 messages are being dead-lettered at > 6/min"
+          runbook: "docs/runbook.md#dlq"
+
+      # --- Saturation --------------------------------------------------------
+      - alert: PDSCircuitOpen
+        expr: pybreaker_state{name="pds"} == 1
+        for: 2m
+        labels:
+          severity: warning
+          team: interop
+        annotations:
+          summary: "PDS circuit breaker is open — pipeline is running with local demographics only"
+          runbook: "docs/runbook.md#pds-circuit"

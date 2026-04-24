@@ -1,0 +1,32 @@
+# Alertmanager config — routes to email for demo; in prod this goes to
+# PagerDuty with severity=critical mapping to a page and warning to a ticket.
+
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: 'mailhog:1025'
+  smtp_from: 'alerts@nhs-interop.example'
+  smtp_require_tls: false
+
+route:
+  receiver: default
+  group_by: [alertname, service]
+  group_wait: 30s
+  group_interval: 2m
+  repeat_interval: 3h
+  routes:
+    - matchers: [severity="critical"]
+      receiver: pager
+
+receivers:
+  - name: default
+    email_configs:
+      - to: 'interop-oncall@nhs-interop.example'
+  - name: pager
+    # pagerduty_configs: [...] — wire up with a real routing key in prod.
+    email_configs:
+      - to: 'interop-pager@nhs-interop.example'
+
+inhibit_rules:
+  - source_matchers: [severity="critical"]
+    target_matchers: [severity="warning"]
+    equal: [alertname, service]
