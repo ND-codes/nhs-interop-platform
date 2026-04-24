@@ -1,0 +1,135 @@
+# Local development stack.
+# Mirrors the production Kubernetes topology as closely as Compose allows:
+#   - three services behind their own ports (ingest, transform, pds-client)
+#   - HAPI FHIR as the FHIR store, Postgres as its backing DB
+#   - Prometheus scraping /metrics on each service
+#   - Grafana with a provisioned datasource and dashboard
+#
+# `make demo` wraps `docker compose up --build -d`.
+
+services:
+
+  ingest:
+    build: ./services/ingest
+    image: nhs-interop/ingest:local
+    container_name: ingest
+    ports: ["8000:8000"]
+    environment:
+      TRANSFORM_URL: http://transform:8001/transform
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      VERSION: ${VERSION:-0.1.0}
+    depends_on:
+      transform:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://localhost:8000/healthz').status==200 else 1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  transform:
+    build: ./services/transform
+    image: nhs-interop/transform:local
+    container_name: transform
+    ports: ["8001:8001"]
+    environment:
+      FHIR_BASE_URL: http://hapi-fhir:8080/fhir
+      PDS_CLIENT_URL: http://pds-client:8002/pds
+      PDS_ENABLED: "true"
+      DLQ_PATH: /tmp/dlq
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      VERSION: ${VERSION:-0.1.0}
+    depends_on:
+      hapi-fhir:
+        condition: service_healthy
+      pds-client:
+        condition: service_healthy
+    volumes:
+      - dlq:/tmp/dlq
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://localhost:8001/healthz').status==200 else 1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  pds-client:
+    build: ./services/pds-client
+    image: nhs-interop/pds-client:local
+    container_name: pds-client
+    ports: ["8002:8002"]
+    environment:
+      PDS_STUB: ${PDS_STUB:-true}
+      PDS_BASE_URL: ${PDS_BASE_URL:-https://sandbox.api.service.nhs.uk/personal-demographics/FHIR/R4}
+      PDS_API_KEY: ${PDS_API_KEY:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      VERSION: ${VERSION:-0.1.0}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://localhost:8002/healthz').status==200 else 1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  hapi-fhir:
+    image: hapiproject/hapi:v7.4.0
+    container_name: hapi-fhir
+    ports: ["8080:8080"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hapi
+      SPRING_DATASOURCE_USERNAME: hapi
+      SPRING_DATASOURCE_PASSWORD: hapi
+      SPRING_DATASOURCE_DRIVERCLASSNAME: org.postgresql.Driver
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+      HAPI_FHIR_FHIR_VERSION: R4
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/fhir/metadata"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_DB: hapi
+      POSTGRES_USER: hapi
+      POSTGRES_PASSWORD: hapi
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hapi -d hapi"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    ports: ["9090:9090"]
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=6h
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: grafana
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
+volumes:
+  pgdata:
+  dlq:
