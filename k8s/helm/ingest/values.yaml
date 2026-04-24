@@ -1,0 +1,67 @@
+replicaCount: 3
+
+image:
+  repository: ghcr.io/<you>/nhs-interop/ingest
+  tag: 0.1.0
+  pullPolicy: IfNotPresent
+
+service:
+  port: 8000
+
+# IRSA — this role ARN is an output of the Terraform stack.
+serviceAccount:
+  create: true
+  name: ingest
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::<account-id>:role/nhs-interop-dev-interop-sa"
+
+env:
+  TRANSFORM_URL: "http://transform:8001/transform"
+  LOG_LEVEL: "INFO"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+networkPolicy:
+  enabled: true
+  # Allow in from the ALB ingress controller and out to transform + DNS.
+  ingressNamespaces: ["ingress-nginx"]
+  egressServices: ["transform"]
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+
+probes:
+  liveness:
+    httpGet: { path: /healthz, port: 8000 }
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  readiness:
+    httpGet: { path: /readyz, port: 8000 }
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8000"
+  prometheus.io/path: "/metrics"

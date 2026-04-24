@@ -1,0 +1,24 @@
+# App-of-apps pattern — a single ArgoCD Application that manages child
+# Applications, giving us a fan-out point for every service in the platform.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nhs-interop
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/<you>/nhs-interop-platform
+    targetRevision: HEAD
+    path: k8s/argocd/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

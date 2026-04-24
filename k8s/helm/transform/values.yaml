@@ -1,0 +1,64 @@
+replicaCount: 3
+
+image:
+  repository: ghcr.io/<you>/nhs-interop/transform
+  tag: 0.1.0
+  pullPolicy: IfNotPresent
+
+service:
+  port: 8001
+
+serviceAccount:
+  create: true
+  name: transform
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::<account-id>:role/nhs-interop-dev-interop-sa"
+
+env:
+  FHIR_BASE_URL: "http://hapi-fhir:8080/fhir"
+  PDS_CLIENT_URL: "http://pds-client:8002/pds"
+  PDS_ENABLED: "true"
+  DLQ_PATH: "/tmp/dlq"
+  LOG_LEVEL: "INFO"
+
+resources:
+  requests: { cpu: 200m, memory: 256Mi }
+  limits:   { cpu: 1,    memory: 512Mi }
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 12
+  targetCPUUtilizationPercentage: 65
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+networkPolicy:
+  enabled: true
+  ingressNamespaces: ["interop"]
+  egressServices: ["pds-client", "hapi-fhir"]
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+
+probes:
+  liveness:
+    httpGet: { path: /healthz, port: 8001 }
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  readiness:
+    httpGet: { path: /readyz, port: 8001 }
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8001"
+  prometheus.io/path: "/metrics"
