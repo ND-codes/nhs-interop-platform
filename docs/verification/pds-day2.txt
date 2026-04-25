@@ -1,0 +1,8 @@
+# PDS client verification — 2026-04-25T18:52:27Z
+
+## Healthz
+{"status":"ok","service":"pds-client","version":"0.1.0"}
+## Stub lookup
+{"resourceType":"Patient","name":[{"use":"official","family":"Smith","given":["Paul"],"prefix":["Mr"]}],"gender":"male","birthDate":"2010-10-22","address":[{"use":"home","line":["1 Trevelyan Square","Boar Lane"],"city":"Leeds","district":"West Yorkshire","postalCode":"LS1 6AE"}],"telecom":[{"system":"phone","value":"01632960587","use":"home"}]}
+## Invalid NHS number
+{"detail":"invalid NHS number format"}HTTP 400
