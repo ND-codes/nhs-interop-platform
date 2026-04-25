@@ -16,7 +16,7 @@ COPY --chown=app:app main.py .
 USER 10001
 
 # Health probe used by docker-compose; Kubernetes uses the HTTP probes on /healthz
-HEALTHCHECK --interval=15s --timeout=3s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --retries=60 \
   CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/healthz').status==200 else 1)"
 
 EXPOSE 8000

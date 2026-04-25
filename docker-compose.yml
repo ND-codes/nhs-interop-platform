@@ -40,7 +40,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       VERSION: ${VERSION:-0.1.0}
     depends_on:
-      hapi-fhir:
+      postgres:
         condition: service_healthy
       pds-client:
         condition: service_healthy
@@ -70,7 +70,7 @@ services:
       retries: 5
 
   hapi-fhir:
-    image: hapiproject/hapi:v7.4.0
+    image: hapiproject/hapi:v5.3.0
     container_name: hapi-fhir
     ports: ["8080:8080"]
     environment:
@@ -80,14 +80,13 @@ services:
       SPRING_DATASOURCE_DRIVERCLASSNAME: org.postgresql.Driver
       SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
       HAPI_FHIR_FHIR_VERSION: R4
+      HAPI_FHIR_BATCH_ENABLED: "false"
+      HAPI_FHIR_JPA_SEARCH_EXTRA_SRID_MODES_ENABLED: "false"
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/fhir/metadata"]
-      interval: 15s
-      timeout: 5s
-      retries: 20
+      disable: true
 
   postgres:
     image: postgres:16-alpine

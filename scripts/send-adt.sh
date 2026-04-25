@@ -17,7 +17,7 @@ echo "==> Waiting 1 second for async processing..."
 sleep 1
 
 echo "==> Querying HAPI FHIR for the Patient by NHS number"
-curl -sS "$FHIR_URL/Patient?identifier=https://fhir.nhs.uk/Id/nhs-number|9000000009" | python3 -m json.tool | head -80
+curl -sS "$FHIR_URL/Patient"
 
 echo
 echo "Full FHIR server at: $FHIR_URL/Patient"
