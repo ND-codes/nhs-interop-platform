@@ -36,6 +36,16 @@ You should see the Patient resource appear in HAPI FHIR within a second, and tra
 
 See `docs/` for the full architecture, runbook, security model and HL7→FHIR mapping. See `Interview Prep/` in the parent folder for the interview walkthrough notes.
 
+## Screenshots
+
+![HL7 Pipeline dashboard](docs/screenshots/grafana-hl7-pipeline.png)
+
+*Live Grafana HL7 Pipeline dashboard during a 30-message burst.*
+
+![FHIR Patient list](docs/screenshots/fhir-patient-list.png)
+
+*HAPI FHIR Patient browser after ingesting an ADT^A01 with NHS number 9000000009.*
+
 ## Repository layout
 
 ```
