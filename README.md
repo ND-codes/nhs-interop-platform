@@ -1,6 +1,6 @@
 # NHS Interop Platform
 
-```markdown
+```
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Terraform](https://img.shields.io/badge/terraform-1.6%2B-7B42BC)
 ![Kubernetes](https://img.shields.io/badge/kubernetes-1.29-326CE5)
@@ -54,7 +54,7 @@ See `docs/` for the full architecture, runbook, security model and HL7→FHIR ma
 
 ![FHIR Patient list](docs/screenshots/fhir-patient-list.png)
 
-```markdown
+```
 ### Grafana — HL7 Pipeline dashboard
 ![Grafana dashboard](docs/screenshots/grafana-hl7-pipeline.png)
 
