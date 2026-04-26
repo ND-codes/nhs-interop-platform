@@ -92,7 +92,7 @@ See `docs/` for the full architecture, runbook, security model and HL7→FHIR ma
 └── .gitlab-ci.yml
 ```
 
- **Cross-links to the docs folder.** A bulleted list of `docs/architecture.md`, `docs/runbook.md`, `docs/security.md`, `docs/hl7-fhir-mapping.md`, `docs/lessons-learnt.md` — the panel should be able to click straight into any one.
+ **Cross-links to the docs folder.** A bulleted list of `docs/architecture.md`, `docs/runbook.md`, `docs/security.md`, `docs/hl7-fhir-mapping.md`, `docs/lessons-learnt.md`
 
 
 ## Licence
