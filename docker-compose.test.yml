@@ -1,0 +1,5 @@
+services:
+  pds-client:
+    build:
+      context: ./services/pds-client
+      target: dev

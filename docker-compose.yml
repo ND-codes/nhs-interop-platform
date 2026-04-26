@@ -53,7 +53,9 @@ services:
       retries: 5
 
   pds-client:
-    build: ./services/pds-client
+    build:
+      context: ./services/pds-client
+      target: runtime
     image: nhs-interop/pds-client:local
     container_name: pds-client
     ports: ["8002:8002"]

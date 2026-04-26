@@ -5,6 +5,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
+FROM base AS dev
+RUN groupadd --system app && useradd --system --gid app --uid 10001 app
+WORKDIR /app
+RUN pip install --no-cache-dir pytest pytest-cov httpx respx
+COPY --from=builder /install /usr/local
+COPY --chown=app:app . .
+USER 10001
+
 FROM base AS runtime
 RUN groupadd --system app && useradd --system --gid app --uid 10001 app
 WORKDIR /app
