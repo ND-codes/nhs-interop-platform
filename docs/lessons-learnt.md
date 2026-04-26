@@ -60,7 +60,7 @@ Written in the first person on purpose. I've seen too many "post-mortems" buried
 
 ---
 
-## Day 3 — Docs, polish, mock interview
+## Day 3 — Docs, polish, and review
 
 ### What worked
 
