@@ -39,7 +39,7 @@ Then open:
 
 You should see the Patient resource appear in HAPI FHIR within a second, and traffic light up on the Grafana dashboard.
 
-See `docs/` for the full architecture, runbook, security model and HL7→FHIR mapping. See `Interview Prep/` in the parent folder for the interview walkthrough notes.
+See `docs/` for the full architecture, runbook, security model and HL7→FHIR mapping. 
 
 **Quickstart section** linking to `QUICKSTART.md` for the long version, with a 3-line summary in the README itself.
 
