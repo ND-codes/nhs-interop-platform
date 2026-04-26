@@ -1,11 +1,9 @@
 # NHS Interop Platform
 
-```
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Terraform](https://img.shields.io/badge/terraform-1.6%2B-7B42BC)
 ![Kubernetes](https://img.shields.io/badge/kubernetes-1.29-326CE5)
 ![FHIR](https://img.shields.io/badge/FHIR-R4-orange)
-```
 
 > HL7 v2 to FHIR R4 interoperability service on AWS, with NHS Spine PDS lookup.
 > Built as a production-shaped reference implementation of the integration patterns used inside NHS trusts running vendor EPRs (Cerner Millennium, Dedalus Lorenzo/ORBIS U) on AWS.
@@ -54,13 +52,12 @@ See `docs/` for the full architecture, runbook, security model and HL7→FHIR ma
 
 ![FHIR Patient list](docs/screenshots/fhir-patient-list.png)
 
-```
 ### Grafana — HL7 Pipeline dashboard
 ![Grafana dashboard](docs/screenshots/grafana-hl7-pipeline.png)
 
 ### Prometheus — all targets UP
 ![Prometheus targets](docs/screenshots/prometheus-targets.png)
-```
+
 *HAPI FHIR Patient browser after ingesting an ADT^A01 with NHS number 9000000009.*
 
 ## Repository layout
