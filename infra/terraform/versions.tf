@@ -20,15 +20,26 @@ terraform {
   # }
 }
 
+#provider "aws" {
+ # region = var.aws_region
+  #default_tags {
+   # tags = {
+    #  Project    = var.project
+     # Environment = var.environment
+      #Owner       = "platform-engineering"
+      #DataClass   = "patient-identifiable"
+      #ManagedBy   = "terraform"
+    #}
+  #}
+#}
+
 provider "aws" {
-  region = var.aws_region
-  default_tags {
-    tags = {
-      Project    = var.project
-      Environment = var.environment
-      Owner       = "platform-engineering"
-      DataClass   = "patient-identifiable"
-      ManagedBy   = "terraform"
-    }
-  }
+  region                      = var.aws_region
+
+  access_key                  = "mock"
+  secret_key                  = "mock"
+
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_requesting_account_id  = true
 }

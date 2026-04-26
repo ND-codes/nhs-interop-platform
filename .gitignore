@@ -15,6 +15,7 @@ htmlcov/
 
 # Terraform
 .terraform/
+infra/terraform/.terraform/
 *.tfstate
 *.tfstate.*
 *.tfplan

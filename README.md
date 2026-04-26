@@ -1,5 +1,12 @@
 # NHS Interop Platform
 
+```markdown
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Terraform](https://img.shields.io/badge/terraform-1.6%2B-7B42BC)
+![Kubernetes](https://img.shields.io/badge/kubernetes-1.29-326CE5)
+![FHIR](https://img.shields.io/badge/FHIR-R4-orange)
+```
+
 > HL7 v2 to FHIR R4 interoperability service on AWS, with NHS Spine PDS lookup.
 > Built as a production-shaped reference implementation of the integration patterns used inside NHS trusts running vendor EPRs (Cerner Millennium, Dedalus Lorenzo/ORBIS U) on AWS.
 
@@ -36,6 +43,9 @@ You should see the Patient resource appear in HAPI FHIR within a second, and tra
 
 See `docs/` for the full architecture, runbook, security model and HL7→FHIR mapping. See `Interview Prep/` in the parent folder for the interview walkthrough notes.
 
+**Quickstart section** linking to `QUICKSTART.md` for the long version, with a 3-line summary in the README itself.
+
+
 ## Screenshots
 
 ![HL7 Pipeline dashboard](docs/screenshots/grafana-hl7-pipeline.png)
@@ -44,6 +54,13 @@ See `docs/` for the full architecture, runbook, security model and HL7→FHIR ma
 
 ![FHIR Patient list](docs/screenshots/fhir-patient-list.png)
 
+```markdown
+### Grafana — HL7 Pipeline dashboard
+![Grafana dashboard](docs/screenshots/grafana-hl7-pipeline.png)
+
+### Prometheus — all targets UP
+![Prometheus targets](docs/screenshots/prometheus-targets.png)
+```
 *HAPI FHIR Patient browser after ingesting an ADT^A01 with NHS number 9000000009.*
 
 ## Repository layout
@@ -66,6 +83,9 @@ See `docs/` for the full architecture, runbook, security model and HL7→FHIR ma
 ├── Makefile
 └── .gitlab-ci.yml
 ```
+
+ **Cross-links to the docs folder.** A bulleted list of `docs/architecture.md`, `docs/runbook.md`, `docs/security.md`, `docs/hl7-fhir-mapping.md`, `docs/lessons-learnt.md` — the panel should be able to click straight into any one.
+
 
 ## Licence
 
