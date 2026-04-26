@@ -1,0 +1,214 @@
+---
+# Source: ingest/templates/networkpolicy.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingest
+  labels:
+    app.kubernetes.io/name: ingest
+    app.kubernetes.io/instance: ingest
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: nhs-interop
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ingest
+      app.kubernetes.io/instance: ingest
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - port: 8000
+          protocol: TCP
+  egress:
+    # Allow CoreDNS lookups.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Allow egress to explicitly named downstream services.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: transform
+---
+# Source: ingest/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ingest
+  labels:
+    app.kubernetes.io/name: ingest
+    app.kubernetes.io/instance: ingest
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: nhs-interop
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ingest
+      app.kubernetes.io/instance: ingest
+---
+# Source: ingest/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ingest
+  labels:
+    app.kubernetes.io/name: ingest
+    app.kubernetes.io/instance: ingest
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: nhs-interop
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::<account-id>:role/nhs-interop-dev-interop-sa
+automountServiceAccountToken: true
+---
+# Source: ingest/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingest
+  labels:
+    app.kubernetes.io/name: ingest
+    app.kubernetes.io/instance: ingest
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: nhs-interop
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: ingest
+    app.kubernetes.io/instance: ingest
+---
+# Source: ingest/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingest
+  labels:
+    app.kubernetes.io/name: ingest
+    app.kubernetes.io/instance: ingest
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: nhs-interop
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ingest
+      app.kubernetes.io/instance: ingest
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ingest
+        app.kubernetes.io/instance: ingest
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8000"
+        prometheus.io/scrape: "true"
+    spec:
+      serviceAccountName: ingest
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+        # Spread replicas across AZs for multi-AZ survivability.
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingest
+              app.kubernetes.io/instance: ingest
+      containers:
+        - name: ingest
+          image: "ghcr.io/<you>/nhs-interop/ingest:0.1.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: TRANSFORM_URL
+              value: "http://transform:8001/transform"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+# Source: ingest/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ingest
+  labels:
+    app.kubernetes.io/name: ingest
+    app.kubernetes.io/instance: ingest
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: nhs-interop
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ingest
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

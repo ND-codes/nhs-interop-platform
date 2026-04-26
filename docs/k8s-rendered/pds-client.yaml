@@ -1,0 +1,212 @@
+---
+# Source: pds-client/templates/networkpolicy.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pds-client
+  labels:
+    app.kubernetes.io/name: pds-client
+    app.kubernetes.io/instance: pds-client
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: nhs-interop
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: pds-client
+      app.kubernetes.io/instance: pds-client
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: interop
+      ports:
+        - port: 8002
+          protocol: TCP
+  egress:
+    # Allow CoreDNS lookups.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Allow egress to explicitly named downstream services.
+---
+# Source: pds-client/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: pds-client
+  labels:
+    app.kubernetes.io/name: pds-client
+    app.kubernetes.io/instance: pds-client
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: nhs-interop
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pds-client
+      app.kubernetes.io/instance: pds-client
+---
+# Source: pds-client/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pds-client
+  labels:
+    app.kubernetes.io/name: pds-client
+    app.kubernetes.io/instance: pds-client
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: nhs-interop
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::<account-id>:role/nhs-interop-dev-interop-sa
+automountServiceAccountToken: true
+---
+# Source: pds-client/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: pds-client
+  labels:
+    app.kubernetes.io/name: pds-client
+    app.kubernetes.io/instance: pds-client
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: nhs-interop
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8002
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: pds-client
+    app.kubernetes.io/instance: pds-client
+---
+# Source: pds-client/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pds-client
+  labels:
+    app.kubernetes.io/name: pds-client
+    app.kubernetes.io/instance: pds-client
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: nhs-interop
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pds-client
+      app.kubernetes.io/instance: pds-client
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pds-client
+        app.kubernetes.io/instance: pds-client
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8002"
+        prometheus.io/scrape: "true"
+    spec:
+      serviceAccountName: pds-client
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+        # Spread replicas across AZs for multi-AZ survivability.
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: pds-client
+              app.kubernetes.io/instance: pds-client
+      containers:
+        - name: pds-client
+          image: "ghcr.io/<you>/nhs-interop/pds-client:0.1.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8002
+              protocol: TCP
+          env:
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: PDS_BASE_URL
+              value: "https://sandbox.api.service.nhs.uk/personal-demographics/FHIR/R4"
+            - name: PDS_STUB
+              value: "false"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            limits:
+              cpu: 200m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8002
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8002
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+# Source: pds-client/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: pds-client
+  labels:
+    app.kubernetes.io/name: pds-client
+    app.kubernetes.io/instance: pds-client
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: nhs-interop
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: pds-client
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
