@@ -52,13 +52,24 @@ See `docs/` for the full architecture, runbook, security model and HL7→FHIR ma
 
 ![FHIR Patient list](docs/screenshots/fhir-patient-list.png)
 
-### Grafana — HL7 Pipeline dashboard
-![Grafana dashboard](docs/screenshots/grafana-hl7-pipeline.png)
+*HAPI FHIR Patient browser after ingesting an ADT^A01 with NHS number 9000000009.*
+
+### Grafana — HL7 Pipeline dashboard from Day 2
+
+![Grafana dashboard](docs/screenshots/grafana-hl7-pipeline2.png)
+
+*Grafana dashboard after 10 minutes background load.*
 
 ### Prometheus — all targets UP
 ![Prometheus targets](docs/screenshots/prometheus-targets.png)
 
-*HAPI FHIR Patient browser after ingesting an ADT^A01 with NHS number 9000000009.*
+*Prometheus shows no alerts on TransformLatencyHigh, IngestNoTraffic,TransformErrorRateHigh, DLQRateHigh, PDSCircuitOpen..*
+
+### Prometheus — IngestNoTraffic alert
+![Prometheus targets](docs/screenshots/prometheus-targets-firing.png)
+
+*IngestNoTraffic alert after background load was stopped for 15 minutes.*
+
 
 ## Repository layout
 
