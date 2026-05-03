@@ -57,8 +57,8 @@ resource "aws_db_instance" "hapi" {
   deletion_protection     = var.environment == "prod"
   skip_final_snapshot     = var.environment != "prod"
 
-  performance_insights_enabled = true
-  monitoring_interval          = 60
+  performance_insights_enabled    = true
+  monitoring_interval             = 60
   enabled_cloudwatch_logs_exports = ["postgresql"]
 
   tags = local.common_tags

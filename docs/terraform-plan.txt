@@ -1,38 +1,38 @@
-[0m[1mmodule.ebs_csi_irsa.data.aws_partition.current: Reading...[0m[0m
-[0m[1mmodule.vpc.data.aws_region.current[0]: Reading...[0m[0m
-[0m[1mdata.aws_availability_zones.available: Reading...[0m[0m
-[0m[1mmodule.eks.module.eks_managed_node_group["default"].data.aws_caller_identity.current: Reading...[0m[0m
-[0m[1mmodule.interop_irsa.data.aws_caller_identity.current: Reading...[0m[0m
-[0m[1mmodule.interop_irsa.data.aws_partition.current: Reading...[0m[0m
-[0m[1mmodule.ebs_csi_irsa.data.aws_region.current: Reading...[0m[0m
-[0m[1mmodule.ebs_csi_irsa.data.aws_partition.current: Read complete after 0s [id=aws][0m
-[0m[1mmodule.vpc.data.aws_region.current[0]: Read complete after 0s [id=eu-west-2][0m
-[0m[1mmodule.interop_irsa.data.aws_partition.current: Read complete after 0s [id=aws][0m
-[0m[1mmodule.ebs_csi_irsa.data.aws_region.current: Read complete after 0s [id=eu-west-2][0m
-[0m[1mmodule.vpc.data.aws_iam_policy_document.flow_log_cloudwatch_assume_role[0]: Reading...[0m[0m
-[0m[1mmodule.vpc.data.aws_partition.current[0]: Reading...[0m[0m
-[0m[1mmodule.vpc.data.aws_partition.current[0]: Read complete after 0s [id=aws][0m
 [0m[1mmodule.eks.module.eks_managed_node_group["default"].data.aws_iam_policy_document.assume_role_policy[0]: Reading...[0m[0m
-[0m[1mmodule.ebs_csi_irsa.data.aws_caller_identity.current: Reading...[0m[0m
-[0m[1mmodule.eks.data.aws_iam_policy_document.assume_role_policy[0]: Reading...[0m[0m
-[0m[1mmodule.eks.module.eks_managed_node_group["default"].data.aws_iam_policy_document.assume_role_policy[0]: Read complete after 0s [id=2560088296][0m
-[0m[1mmodule.vpc.data.aws_iam_policy_document.flow_log_cloudwatch_assume_role[0]: Read complete after 0s [id=1021377347][0m
-[0m[1mmodule.eks.data.aws_iam_policy_document.assume_role_policy[0]: Read complete after 0s [id=2830595799][0m
-[0m[1mmodule.eks.data.aws_caller_identity.current[0]: Reading...[0m[0m
-[0m[1mmodule.interop_irsa.data.aws_region.current: Reading...[0m[0m
-[0m[1mmodule.eks.module.eks_managed_node_group["default"].data.aws_partition.current: Reading...[0m[0m
-[0m[1mmodule.eks.data.aws_partition.current[0]: Reading...[0m[0m
-[0m[1mmodule.interop_irsa.data.aws_region.current: Read complete after 0s [id=eu-west-2][0m
-[0m[1mmodule.eks.module.eks_managed_node_group["default"].data.aws_partition.current: Read complete after 0s [id=aws][0m
-[0m[1mmodule.eks.data.aws_partition.current[0]: Read complete after 0s [id=aws][0m
+[0m[1mmodule.interop_irsa.data.aws_caller_identity.current: Reading...[0m[0m
 [0m[1mmodule.vpc.data.aws_caller_identity.current[0]: Reading...[0m[0m
-[0m[1mmodule.ebs_csi_irsa.data.aws_iam_policy_document.ebs_csi[0]: Reading...[0m[0m
+[0m[1mmodule.ebs_csi_irsa.data.aws_region.current: Reading...[0m[0m
+[0m[1mmodule.vpc.data.aws_region.current[0]: Reading...[0m[0m
+[0m[1mmodule.eks.data.aws_partition.current[0]: Reading...[0m[0m
+[0m[1mmodule.vpc.data.aws_partition.current[0]: Reading...[0m[0m
+[0m[1mmodule.eks.data.aws_caller_identity.current[0]: Reading...[0m[0m
+[0m[1mmodule.ebs_csi_irsa.data.aws_region.current: Read complete after 0s [id=eu-west-2][0m
+[0m[1mmodule.eks.module.eks_managed_node_group["default"].data.aws_iam_policy_document.assume_role_policy[0]: Read complete after 0s [id=2560088296][0m
+[0m[1mmodule.vpc.data.aws_region.current[0]: Read complete after 0s [id=eu-west-2][0m
+[0m[1mmodule.eks.data.aws_iam_policy_document.assume_role_policy[0]: Reading...[0m[0m
+[0m[1mmodule.interop_irsa.data.aws_partition.current: Reading...[0m[0m
+[0m[1mmodule.vpc.data.aws_partition.current[0]: Read complete after 0s [id=aws][0m
+[0m[1mdata.aws_availability_zones.available: Reading...[0m[0m
+[0m[1mmodule.eks.data.aws_partition.current[0]: Read complete after 0s [id=aws][0m
+[0m[1mmodule.eks.module.eks_managed_node_group["default"].data.aws_caller_identity.current: Reading...[0m[0m
+[0m[1mmodule.interop_irsa.data.aws_partition.current: Read complete after 0s [id=aws][0m
+[0m[1mmodule.eks.data.aws_iam_policy_document.assume_role_policy[0]: Read complete after 0s [id=2830595799][0m
+[0m[1mmodule.interop_irsa.data.aws_region.current: Reading...[0m[0m
+[0m[1mmodule.ebs_csi_irsa.data.aws_caller_identity.current: Reading...[0m[0m
+[0m[1mmodule.ebs_csi_irsa.data.aws_partition.current: Reading...[0m[0m
+[0m[1mmodule.interop_irsa.data.aws_region.current: Read complete after 0s [id=eu-west-2][0m
+[0m[1mmodule.vpc.data.aws_iam_policy_document.flow_log_cloudwatch_assume_role[0]: Reading...[0m[0m
+[0m[1mmodule.ebs_csi_irsa.data.aws_partition.current: Read complete after 0s [id=aws][0m
+[0m[1mmodule.vpc.data.aws_iam_policy_document.flow_log_cloudwatch_assume_role[0]: Read complete after 0s [id=1021377347][0m
+[0m[1mmodule.eks.module.eks_managed_node_group["default"].data.aws_partition.current: Reading...[0m[0m
+[0m[1mmodule.eks.module.eks_managed_node_group["default"].data.aws_partition.current: Read complete after 0s [id=aws][0m
 [0m[1mmodule.eks.data.aws_iam_policy_document.custom[0]: Reading...[0m[0m
-[0m[1mmodule.ebs_csi_irsa.data.aws_iam_policy_document.ebs_csi[0]: Read complete after 0s [id=4189668531][0m
+[0m[1mmodule.ebs_csi_irsa.data.aws_iam_policy_document.ebs_csi[0]: Reading...[0m[0m
 [0m[1mmodule.eks.data.aws_iam_policy_document.custom[0]: Read complete after 0s [id=513122117][0m
+[0m[1mmodule.ebs_csi_irsa.data.aws_iam_policy_document.ebs_csi[0]: Read complete after 0s [id=4189668531][0m
 [0m[1mmodule.eks.module.kms.data.aws_partition.current[0]: Reading...[0m[0m
 [0m[1mmodule.eks.module.kms.data.aws_caller_identity.current[0]: Reading...[0m[0m
-[0m[1mmodule.eks.module.kms.data.aws_partition.current[0]: Read complete after 0s [id=aws][0m
+[0m[1mmodule.eks.module.kms.data.aws_partition.current[0]: Read complete after 1s [id=aws][0m
 
 Terraform used the selected providers to generate the following execution
 plan. Resource actions are indicated with the following symbols:
@@ -1274,7 +1274,7 @@ Changes to Outputs:
   [32m+[0m[0m dlq_bucket = (known after apply)
   [32m+[0m[0m vpc_id     = (known after apply)
 [31m╷[0m[0m
-[31m│[0m [0m[1m[31mError: [0m[0m[1mfetching Availability Zones: operation error EC2: DescribeAvailabilityZones, https response error StatusCode: 401, RequestID: 06aaa35e-440c-4ec7-9a8f-e98ef1c5f556, api error AuthFailure: AWS was not able to validate the provided access credentials[0m
+[31m│[0m [0m[1m[31mError: [0m[0m[1mfetching Availability Zones: operation error EC2: DescribeAvailabilityZones, https response error StatusCode: 401, RequestID: f9fa2d58-6762-4ba2-89cb-28c7edab86ce, api error AuthFailure: AWS was not able to validate the provided access credentials[0m
 [31m│[0m [0m
 [31m│[0m [0m[0m  with data.aws_availability_zones.available,
 [31m│[0m [0m  on main.tf line 10, in data "aws_availability_zones" "available":
@@ -1289,7 +1289,7 @@ Changes to Outputs:
 [31m│[0m [0m   4: data "aws_caller_identity" "current" [4m{[0m[0m
 [31m│[0m [0m
 [31m│[0m [0moperation error STS: GetCallerIdentity, https response error StatusCode:
-[31m│[0m [0m403, RequestID: b93ab04b-181c-43b2-b4d7-ef862243a2c5, api error
+[31m│[0m [0m403, RequestID: 9110429b-f5e7-4265-b6d3-6707e1c239fc, api error
 [31m│[0m [0mInvalidClientTokenId: The security token included in the request is
 [31m│[0m [0minvalid.
 [31m╵[0m[0m
@@ -1301,7 +1301,7 @@ Changes to Outputs:
 [31m│[0m [0m   4: data "aws_caller_identity" "current" [4m{[0m[0m
 [31m│[0m [0m
 [31m│[0m [0moperation error STS: GetCallerIdentity, https response error StatusCode:
-[31m│[0m [0m403, RequestID: 37a9cd46-725c-475e-ab3b-301456e1e9c5, api error
+[31m│[0m [0m403, RequestID: bfd4d612-7afb-45a3-8f6f-02b3778d816a, api error
 [31m│[0m [0mInvalidClientTokenId: The security token included in the request is
 [31m│[0m [0minvalid.
 [31m╵[0m[0m
@@ -1313,7 +1313,7 @@ Changes to Outputs:
 [31m│[0m [0m   6: data "aws_caller_identity" "current" [4m{[0m[0m
 [31m│[0m [0m
 [31m│[0m [0moperation error STS: GetCallerIdentity, https response error StatusCode:
-[31m│[0m [0m403, RequestID: 96bc79b2-849e-4a80-8cb3-4b3553719faf, api error
+[31m│[0m [0m403, RequestID: c3c88a37-8e0a-45bc-8e71-390d3451b3ef, api error
 [31m│[0m [0mInvalidClientTokenId: The security token included in the request is
 [31m│[0m [0minvalid.
 [31m╵[0m[0m
@@ -1325,7 +1325,7 @@ Changes to Outputs:
 [31m│[0m [0m   2: data "aws_caller_identity" "current" [4m{[0m}[0m
 [31m│[0m [0m
 [31m│[0m [0moperation error STS: GetCallerIdentity, https response error StatusCode:
-[31m│[0m [0m403, RequestID: 0b208815-9530-4f92-9378-b07d0445586d, api error
+[31m│[0m [0m403, RequestID: eec9120f-78ff-448f-b94d-be1a6e0c4f5c, api error
 [31m│[0m [0mInvalidClientTokenId: The security token included in the request is
 [31m│[0m [0minvalid.
 [31m╵[0m[0m
@@ -1337,7 +1337,7 @@ Changes to Outputs:
 [31m│[0m [0m   2: data "aws_caller_identity" "current" [4m{[0m}[0m
 [31m│[0m [0m
 [31m│[0m [0moperation error STS: GetCallerIdentity, https response error StatusCode:
-[31m│[0m [0m403, RequestID: ed0cf035-4d32-461d-b08b-dba2ea37aa30, api error
+[31m│[0m [0m403, RequestID: 3a14ef5b-de34-4db6-8ca8-625cff04b183, api error
 [31m│[0m [0mInvalidClientTokenId: The security token included in the request is
 [31m│[0m [0minvalid.
 [31m╵[0m[0m
@@ -1349,7 +1349,7 @@ Changes to Outputs:
 [31m│[0m [0m   2: data "aws_caller_identity" "current" [4m{[0m}[0m
 [31m│[0m [0m
 [31m│[0m [0moperation error STS: GetCallerIdentity, https response error StatusCode:
-[31m│[0m [0m403, RequestID: e735a517-dd1c-4b40-bfa4-c9749aa6efd7, api error
+[31m│[0m [0m403, RequestID: 3ee28116-7ce7-481e-8822-d1908d900eed, api error
 [31m│[0m [0mInvalidClientTokenId: The security token included in the request is
 [31m│[0m [0minvalid.
 [31m╵[0m[0m
