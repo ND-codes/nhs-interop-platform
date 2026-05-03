@@ -2,6 +2,7 @@
 SHELL := /bin/bash
 
 SERVICES := ingest transform pds-client
+PROJECT_ROOT := $(shell pwd)
 
 .PHONY: help
 help:  ## Show this help
@@ -39,14 +40,14 @@ clean: ## Stop stack and remove volumes (destroys Postgres + DLQ data)
 test: ## Run unit tests for every service in a throwaway container
 	@for svc in $(SERVICES); do \
 		echo "==> Testing services/$$svc" ; \
-		docker run --rm -v "$$PWD/services/$$svc":/app -w /app python:3.12-slim \
+		docker run --rm -v "$$(cygpath -m $$(cd services/$$svc && pwd))":/app -w //app python:3.12-slim \
 			sh -c "pip install -q -r requirements-dev.txt && pytest -q" || exit 1 ; \
 	done
 
 .PHONY: integration
 integration: ## Run the end-to-end integration test (requires the stack to be up)
 	python3 -m pip install --quiet httpx pytest
-	pytest -q tests/integration
+	python3 -m pytest -q tests/integration
 
 .PHONY: reconcile
 reconcile: ## Hash-compare HL7 input batch against FHIR output batch
@@ -56,7 +57,7 @@ reconcile: ## Hash-compare HL7 input batch against FHIR output batch
 lint: ## Lint every Python service
 	@for svc in $(SERVICES); do \
 		echo "==> Linting services/$$svc" ; \
-		docker run --rm -v "$$PWD/services/$$svc":/app -w /app python:3.12-slim \
+		docker run --rm -v "$$(cygpath -m $$(cd services/$$svc && pwd))":/app -w //app python:3.12-slim \
 			sh -c "pip install -q ruff==0.6.9 && ruff check ." || exit 1 ; \
 	done
 
