@@ -8,7 +8,6 @@ the bundle to HAPI FHIR. Failures go to a dead-letter path (S3 in prod,
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 import uuid

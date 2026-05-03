@@ -54,9 +54,11 @@ def _field(seg, idx: int, comp: int | None = None) -> str | None:
     if comp is None:
         return str(f).strip() or None
     try:
-        return str(f[comp]).strip() or None
+        # hl7 library uses 1-based component indexing; callers pass 0-based.
+        return str(f[comp + 1]).strip() or None
     except (IndexError, TypeError):
-        return str(f).strip() or None
+        parts = str(f).split("^")
+        return parts[comp].strip() if comp < len(parts) else None
 
 
 def _parse(message: str) -> hl7.Message:

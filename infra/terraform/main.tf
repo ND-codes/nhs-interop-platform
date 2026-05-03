@@ -1,6 +1,6 @@
 locals {
-  name   = "${var.project}-${var.environment}"
-  azs    = slice(data.aws_availability_zones.available.names, 0, 3)
+  name = "${var.project}-${var.environment}"
+  azs  = slice(data.aws_availability_zones.available.names, 0, 3)
   common_tags = {
     Project     = var.project
     Environment = var.environment
