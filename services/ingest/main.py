@@ -13,7 +13,7 @@ import uuid
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request
 from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel, Field
 from pythonjsonlogger import jsonlogger
