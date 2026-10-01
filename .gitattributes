@@ -1,0 +1,10 @@
+# Store text files with LF line endings and check them out with LF on every OS.
+# Shell scripts fail on Linux when they have Windows (CRLF) line endings.
+* text=auto eol=lf
+
+# HL7 v2 test fixtures: no line-ending conversion, so the tests
+# always see exactly the bytes that were committed.
+*.hl7 -text
+
+# Binary files
+*.png binary
