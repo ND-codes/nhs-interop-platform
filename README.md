@@ -12,16 +12,16 @@
 
 ## Why this exists
 
-NHS trusts running vendor EPRs emit HL7 v2 natively, but the rest of the NHS ecosystem (Spine, FDP, NHS App, analytics) speaks FHIR. Every trust therefore needs an interoperability layer that translates HL7 v2 into FHIR, enriches with authoritative national data (PDS), and exposes a FHIR-compliant REST API. This repository is a small, production-shaped implementation of exactly that layer — runnable locally with one `docker compose up`, deployable to AWS EKS with Terraform, delivered through GitLab CI and ArgoCD, observed with Prometheus and Grafana.
+NHS trusts running vendor EPRs emit HL7 v2 natively, but the rest of the NHS ecosystem (Spine, FDP, NHS App, analytics) speaks FHIR. Every trust therefore needs an interoperability layer that translates HL7 v2 into FHIR, enriches with authoritative national data (PDS), and exposes a FHIR-compliant REST API. This repository is a small, production-shaped implementation of exactly that layer: runnable locally with one `docker compose up`, deployable to AWS EKS with Terraform, delivered through GitLab CI and ArgoCD, observed with Prometheus and Grafana.
 
-It is deliberately scoped to be **read and understood in a 10-minute interview walkthrough**.
+It is deliberately scoped to be read and understood in a 10-minute interview walkthrough.
 
 ## Quick start
 
 Requires Docker 24+ and `make`.
 
 ```bash
-git clone https://github.com/<you>/nhs-interop-platform.git
+git clone https://github.com/ND-codes/nhs-interop-platform.git
 cd nhs-interop-platform
 cp .env.example .env.local
 make demo               # builds and starts all services
@@ -41,7 +41,7 @@ You should see the Patient resource appear in HAPI FHIR within a second, and tra
 
 See `docs/` for the full architecture, runbook, security model and HL7→FHIR mapping. 
 
-**Quickstart section** linking to `QUICKSTART.md` for the long version, with a 3-line summary in the README itself.
+For the longer walkthrough, see [QUICKSTART.md](QUICKSTART.md).
 
 
 ## Screenshots
@@ -54,19 +54,19 @@ See `docs/` for the full architecture, runbook, security model and HL7→FHIR ma
 
 *HAPI FHIR Patient browser after ingesting an ADT^A01 with NHS number 9000000009.*
 
-### Grafana — HL7 Pipeline dashboard from Day 2
+### Grafana: HL7 Pipeline dashboard from Day 2
 
 ![Grafana dashboard](docs/screenshots/grafana-hl7-pipeline2.png)
 
 *Grafana dashboard after 10 minutes background load.*
 
-### Prometheus — all targets UP
+### Prometheus: all targets UP
 ![Prometheus targets](docs/screenshots/prometheus-targets.png)
 
-*Prometheus shows no alerts on TransformLatencyHigh, IngestNoTraffic,TransformErrorRateHigh, DLQRateHigh, PDSCircuitOpen..*
+*Prometheus shows no alerts on TransformLatencyHigh, IngestNoTraffic, TransformErrorRateHigh, DLQRateHigh, PDSCircuitOpen.*
 
-### Prometheus — IngestNoTraffic alert
-![Prometheus targets](docs/screenshots/prometheus-targets-firing.png)
+### Prometheus: IngestNoTraffic alert
+![Prometheus IngestNoTraffic alert firing](docs/screenshots/prometheus-targets-firing.png)
 
 *IngestNoTraffic alert after background load was stopped for 15 minutes.*
 
@@ -76,24 +76,34 @@ See `docs/` for the full architecture, runbook, security model and HL7→FHIR ma
 ```
 .
 ├── services/
-│   ├── ingest/       — FastAPI HL7 v2 receiver
-│   ├── transform/    — HL7 v2 → FHIR R4 mapper
-│   └── pds-client/   — NHS PDS FHIR Sandbox client
-├── infra/terraform/  — AWS VPC, EKS, RDS, S3, KMS, IAM
+│   ├── ingest/       # FastAPI HL7 v2 receiver
+│   ├── transform/    # HL7 v2 → FHIR R4 mapper
+│   └── pds-client/   # NHS PDS FHIR Sandbox client
+├── infra/terraform/  # AWS VPC, EKS, RDS, S3, KMS, IAM
 ├── k8s/
-│   ├── helm/         — per-service Helm charts
-│   └── argocd/       — app-of-apps GitOps definitions
-├── observability/    — Prometheus, Grafana, Alertmanager
-├── tests/            — unit, integration, reconciliation
-├── docs/             — architecture, HL7/FHIR mapping, security, runbook
-├── scripts/          — helper scripts (send-adt.sh, reconcile.sh)
+│   ├── helm/         # per-service Helm charts
+│   └── argocd/       # app-of-apps GitOps definitions
+├── observability/    # Prometheus, Grafana, Alertmanager
+├── tests/            # unit, integration, reconciliation
+├── docs/             # architecture, HL7/FHIR mapping, security, runbook
+├── scripts/          # helper scripts (send-adt.sh, reconcile.sh)
 ├── docker-compose.yml
 ├── Makefile
 └── .gitlab-ci.yml
 ```
 
- **Cross-links to the docs folder.** A bulleted list of `docs/architecture.md`, `docs/runbook.md`, `docs/security.md`, `docs/hl7-fhir-mapping.md`, `docs/lessons-learnt.md`
+## Documentation
 
+- [Quickstart, the longer walkthrough](QUICKSTART.md)
+- [Architecture](docs/architecture.md)
+- [HL7 v2 to FHIR R4 mapping](docs/hl7-fhir-mapping.md)
+- [Runbook](docs/runbook.md)
+- [Security model](docs/security.md)
+- [Lessons learnt](docs/lessons-learnt.md)
+
+## Disclaimer
+
+This is a personal project. It is not affiliated with or endorsed by NHS England or any NHS organisation. It uses the public PDS FHIR sandbox and synthetic test data only, and it contains no real patient data. Views are my own.
 
 ## Licence
 
