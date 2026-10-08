@@ -16,6 +16,10 @@ NHS trusts running vendor EPRs emit HL7 v2 natively, but the rest of the NHS eco
 
 It is deliberately scoped to be read and understood in a 10-minute interview walkthrough.
 
+## Blog series
+
+I'm writing a seven-part series about this project on dev.to, one article every two weeks from October 2026. The index, the drafts and the planned dates are in [blog/](blog/README.md).
+
 ## Quick start
 
 Requires Docker 24+ and `make`.
@@ -86,11 +90,24 @@ For the longer walkthrough, see [QUICKSTART.md](QUICKSTART.md).
 ├── observability/    # Prometheus, Grafana, Alertmanager
 ├── tests/            # unit, integration, reconciliation
 ├── docs/             # architecture, HL7/FHIR mapping, security, runbook
+├── blog/             # blog series index and drafts
 ├── scripts/          # helper scripts (send-adt.sh, reconcile.sh)
 ├── docker-compose.yml
 ├── Makefile
 └── .gitlab-ci.yml
 ```
+
+## Roadmap
+
+Planned work is tracked as [issues labelled roadmap](https://github.com/ND-codes/nhs-interop-platform/labels/roadmap). The seven items from [Lessons learnt](docs/lessons-learnt.md) are:
+
+1. Put an SQS FIFO queue between ingest and transform.
+2. Add OpenTelemetry distributed tracing.
+3. Wire up External Secrets Operator.
+4. Extract the Terraform into reusable modules.
+5. Add contract tests against the PDS sandbox.
+6. Add chaos tests for the dead-letter path and replay.
+7. Document Azure parity.
 
 ## Documentation
 
