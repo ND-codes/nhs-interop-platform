@@ -27,5 +27,5 @@ HL7 v2 messages from the trust integration engine land at an AWS ALB fronting th
 
 - **Why not one monolith?** Ingest, transform and PDS have different failure modes and different scaling profiles. Splitting them lets us bulkhead around PDS without capping our ingress throughput.
 - **Why HAPI FHIR, not HealthLake?** HAPI FHIR is open-source, production-proven at NHS trusts, and avoids regional availability caveats. HealthLake is compelling for analytics overlay but was not a hard requirement for this scope.
-- **Why in-memory queue, not SQS from day one?** Keeps the local demo one-command. SQS FIFO is on the roadmap and is a drop-in swap at the ingest→transform boundary.
+- **Why synchronous HTTP between ingest and transform, not SQS from day one?** Keeps the local demo one-command. SQS FIFO is on the roadmap and is a drop-in swap at the ingest→transform boundary.
 - **Why EKS, not ECS Fargate?** The JD emphasises Kubernetes, and the team's existing tooling (ArgoCD, Helm, Prometheus) assumes Kubernetes.
