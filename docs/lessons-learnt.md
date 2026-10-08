@@ -30,7 +30,7 @@ Written in the first person on purpose. I've seen too many "post-mortems" buried
 
 **I'd write the DLQ path before the happy path.** I wrote `map_message` first, saw it work, then bolted on the DLQ. That ordering meant the first two commits of the transform service didn't have a failure mode — which isn't how real code lives. Starting with *"every message either succeeds, or lands here with a reason"* would have made the happy path cleaner.
 
-**I'd use SQS from the start, not in-memory queues.** In-memory works for the demo but hides the actual message-ordering question (SQS FIFO vs standard). Swapping now is annotated in the roadmap but means I can't currently demonstrate at-least-once semantics under partition. This is the "production-shaped, not production" trade-off I made consciously to stay within the build budget.
+**I'd use SQS from the start, not a synchronous HTTP hand-off.** Direct HTTP works for the demo but hides the actual message-ordering question (SQS FIFO vs standard). Swapping now is annotated in the roadmap but means I can't currently demonstrate at-least-once semantics under partition. This is the "production-shaped, not production" trade-off I made consciously to stay within the build budget.
 
 ---
 
@@ -101,9 +101,9 @@ These are the things I had to discover the hard way. If you're reading this to p
 
 ### Terraform / AWS
 - `enable_flow_log` on the VPC module is mandatory for DSPT audit.
-- S3 Object Lock can only be enabled at bucket creation. If you forget, you recreate. Don't forget.
+- S3 Object Lock can be enabled on an existing bucket, but versioning has to be on first and it can't be switched off afterwards. This repo uses `aws_s3_bucket_object_lock_configuration`, which works for new and existing buckets; `object_lock_enabled` on `aws_s3_bucket` would force a new bucket.
 - RDS `deletion_protection = true` in prod means `terraform destroy` fails — that's the point. Use a conditional to keep dev cheap.
-- KMS CMKs have a 14-day minimum deletion window. Plan accordingly.
+- KMS keys can't be deleted straight away: the waiting period is 7 to 30 days, and the default is 30. This repo sets 14. Plan accordingly.
 - `aws_db_instance.kms_key_id` requires the CMK ARN, not the alias. This one bites people a lot.
 
 ### CI/CD
@@ -128,7 +128,7 @@ These are the things I had to discover the hard way. If you're reading this to p
 
 If I had another week:
 
-1. **Replace the in-memory queue with SQS FIFO.** This is the first question every senior interviewer asks, and the answer is always "I know — here's the annotated swap point."
+1. **Replace the synchronous HTTP hand-off between ingest and transform with SQS FIFO.** This is the first question every senior interviewer asks, and the answer is always "I know — here's the annotated swap point."
 2. **Add OpenTelemetry distributed tracing.** RED metrics are necessary but not sufficient; a trace across ingest → transform → PDS → HAPI is how you diagnose the slow outlier.
 3. **Wire up External Secrets Operator.** PDS API keys come out of Secrets Manager at pod-startup time, rotation handled automatically.
 4. **Terraform module extraction.** Break the flat `infra/terraform/` into reusable modules with independent versioning.
