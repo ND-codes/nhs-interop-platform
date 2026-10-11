@@ -133,7 +133,7 @@ async def _enrich_via_pds(
     return enriched
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=0.2, max=2))
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=0.2, max=2), reraise=True)
 async def _persist_bundle(
     http: httpx.AsyncClient, bundle: dict, trace_id: str
 ) -> dict:
