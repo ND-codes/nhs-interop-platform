@@ -1,174 +1,46 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 780" font-family="Segoe UI, Arial, sans-serif">
-  <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#333"/>
-    </marker>
-    <style>
-      .title { font-size: 22px; font-weight: 700; fill: #0b3a8a; }
-      .subtitle { font-size: 12px; fill: #555; }
-      .zone { fill: #f5f8fc; stroke: #b0c2dd; stroke-dasharray: 4,4; }
-      .zone-label { font-size: 12px; font-weight: 700; fill: #0b3a8a; }
-      .svc { fill: #ffffff; stroke: #0b3a8a; stroke-width: 1.5; }
-      .svc-label { font-size: 13px; font-weight: 600; fill: #0b3a8a; text-anchor: middle; }
-      .svc-tech { font-size: 10px; fill: #666; text-anchor: middle; }
-      .ext { fill: #fff4e6; stroke: #d97706; stroke-width: 1.5; }
-      .ext-label { font-size: 13px; font-weight: 600; fill: #b45309; text-anchor: middle; }
-      .data { fill: #e8f5e9; stroke: #2e7d32; stroke-width: 1.5; }
-      .data-label { font-size: 13px; font-weight: 600; fill: #1b5e20; text-anchor: middle; }
-      .obs { fill: #ede7f6; stroke: #5e35b1; stroke-width: 1.5; }
-      .obs-label { font-size: 13px; font-weight: 600; fill: #4527a0; text-anchor: middle; }
-      .flow { stroke: #333; stroke-width: 1.8; fill: none; }
-      .flow-label { font-size: 10px; fill: #444; }
-      .sec { fill: #fdecea; stroke: #c62828; stroke-width: 1.5; }
-      .sec-label { font-size: 13px; font-weight: 600; fill: #b71c1c; text-anchor: middle; }
-    </style>
-  </defs>
-
-  <text x="30" y="32" class="title">NHS Interop Platform — HL7 v2 to FHIR on AWS, with NHS Spine PDS</text>
-  <text x="30" y="52" class="subtitle">Terraform · EKS · GitLab CI · ArgoCD · Prometheus / Grafana · NHS Digital PDS FHIR Sandbox</text>
-
-  <!-- External -->
-  <rect x="30" y="80" width="220" height="120" rx="8" class="ext"/>
-  <text x="140" y="102" class="ext-label">Trust Integration Engine</text>
-  <text x="140" y="120" class="svc-tech">emits HL7 v2 (ADT, ORM, ORU)</text>
-  <text x="140" y="140" class="svc-tech">Cerner Millennium / Lorenzo / ORBIS U</text>
-  <text x="140" y="170" class="svc-tech" style="font-size:11px;">source system</text>
-
-  <!-- AWS zone -->
-  <rect x="280" y="80" width="700" height="560" rx="10" class="zone"/>
-  <text x="295" y="100" class="zone-label">AWS — VPC (3 AZ, private subnets), EKS, Terraform-provisioned</text>
-
-  <!-- API Gateway / ALB -->
-  <rect x="310" y="120" width="160" height="70" rx="8" class="svc"/>
-  <text x="390" y="145" class="svc-label">ALB + WAF</text>
-  <text x="390" y="162" class="svc-tech">mTLS in, OAuth 2.0 / OIDC</text>
-  <text x="390" y="178" class="svc-tech">rate limit, threat rules</text>
-
-  <!-- EKS cluster -->
-  <rect x="310" y="210" width="640" height="240" rx="8" class="zone" style="fill:#ffffff; stroke:#0b3a8a;"/>
-  <text x="325" y="230" class="zone-label">Amazon EKS (Kubernetes 1.29)</text>
-
-  <!-- Ingest service -->
-  <rect x="335" y="250" width="170" height="80" rx="8" class="svc"/>
-  <text x="420" y="275" class="svc-label">ingest</text>
-  <text x="420" y="293" class="svc-tech">FastAPI · HL7 v2 receiver</text>
-  <text x="420" y="309" class="svc-tech">replicas 3 · HPA · PDB</text>
-
-  <!-- Transform service -->
-  <rect x="535" y="250" width="170" height="80" rx="8" class="svc"/>
-  <text x="620" y="275" class="svc-label">transform</text>
-  <text x="620" y="293" class="svc-tech">HL7 v2 → FHIR R4</text>
-  <text x="620" y="309" class="svc-tech">circuit breaker · DLQ</text>
-
-  <!-- PDS client -->
-  <rect x="735" y="250" width="185" height="80" rx="8" class="svc"/>
-  <text x="827" y="275" class="svc-label">pds-client</text>
-  <text x="827" y="293" class="svc-tech">NHS PDS FHIR Sandbox</text>
-  <text x="827" y="309" class="svc-tech">sidecar mTLS · bulkhead</text>
-
-  <!-- FHIR store -->
-  <rect x="535" y="360" width="170" height="70" rx="8" class="svc"/>
-  <text x="620" y="383" class="svc-label">HAPI FHIR server</text>
-  <text x="620" y="400" class="svc-tech">FHIR REST API, R4</text>
-  <text x="620" y="416" class="svc-tech">StatefulSet · 2 replicas</text>
-
-  <!-- Data layer -->
-  <rect x="310" y="470" width="195" height="70" rx="8" class="data"/>
-  <text x="407" y="493" class="data-label">RDS Postgres (Multi-AZ)</text>
-  <text x="407" y="510" class="svc-tech">HAPI FHIR backing store</text>
-  <text x="407" y="526" class="svc-tech">KMS-encrypted · PITR</text>
-
-  <rect x="525" y="470" width="195" height="70" rx="8" class="data"/>
-  <text x="622" y="493" class="data-label">S3 — audit + DLQ</text>
-  <text x="622" y="510" class="svc-tech">dead-letter HL7 messages</text>
-  <text x="622" y="526" class="svc-tech">versioning · Object Lock</text>
-
-  <rect x="740" y="470" width="195" height="70" rx="8" class="data"/>
-  <text x="837" y="493" class="data-label">Secrets Manager + KMS</text>
-  <text x="837" y="510" class="svc-tech">PDS sandbox creds</text>
-  <text x="837" y="526" class="svc-tech">IRSA (IAM for SA)</text>
-
-  <!-- Observability -->
-  <rect x="310" y="560" width="620" height="70" rx="8" class="obs"/>
-  <text x="620" y="583" class="obs-label">Observability — Prometheus · Grafana · CloudWatch · OpenTelemetry</text>
-  <text x="620" y="602" class="svc-tech">RED dashboards per service · PDS latency · circuit breaker state · 4 golden-signal alerts</text>
-  <text x="620" y="618" class="svc-tech">Alertmanager → PagerDuty / email</text>
-
-  <!-- External — NHS Spine PDS -->
-  <rect x="1000" y="260" width="180" height="100" rx="8" class="ext"/>
-  <text x="1090" y="285" class="ext-label">NHS Spine</text>
-  <text x="1090" y="305" class="svc-tech">PDS FHIR API (Sandbox)</text>
-  <text x="1090" y="321" class="svc-tech">Spine Secure Proxy</text>
-  <text x="1090" y="337" class="svc-tech">mTLS + OAuth 2.0</text>
-  <text x="1090" y="353" class="svc-tech">api.service.nhs.uk</text>
-
-  <!-- CI/CD -->
-  <rect x="30" y="240" width="220" height="80" rx="8" class="sec"/>
-  <text x="140" y="265" class="sec-label">GitLab CI/CD</text>
-  <text x="140" y="283" class="svc-tech">lint · test · Trivy · Semgrep</text>
-  <text x="140" y="299" class="svc-tech">Gitleaks · SBOM (Syft)</text>
-  <text x="140" y="313" class="svc-tech">build · sign · push</text>
-
-  <rect x="30" y="340" width="220" height="80" rx="8" class="sec"/>
-  <text x="140" y="365" class="sec-label">ArgoCD — GitOps</text>
-  <text x="140" y="383" class="svc-tech">app-of-apps pattern</text>
-  <text x="140" y="399" class="svc-tech">automated sync + self-heal</text>
-  <text x="140" y="415" class="svc-tech">audit trail in Git</text>
-
-  <!-- Developer -->
-  <rect x="30" y="460" width="220" height="70" rx="8" class="svc"/>
-  <text x="140" y="483" class="svc-label">Developer / CI runner</text>
-  <text x="140" y="500" class="svc-tech">conventional commits</text>
-  <text x="140" y="516" class="svc-tech">MR → protected main</text>
-
-  <!-- Flows -->
-  <path d="M250,140 L310,140" class="flow" marker-end="url(#arrow)"/>
-  <text x="260" y="132" class="flow-label">HL7 v2</text>
-
-  <path d="M470,160 L470,250" class="flow" marker-end="url(#arrow)"/>
-  <text x="478" y="200" class="flow-label">POST /hl7</text>
-
-  <path d="M505,290 L535,290" class="flow" marker-end="url(#arrow)"/>
-  <text x="508" y="282" class="flow-label">queue</text>
-
-  <path d="M705,290 L735,290" class="flow" marker-end="url(#arrow)"/>
-  <text x="706" y="282" class="flow-label">enrich</text>
-
-  <path d="M920,290 L1000,310" class="flow" marker-end="url(#arrow)"/>
-  <text x="928" y="296" class="flow-label">FHIR GET Patient/{nhs}</text>
-
-  <path d="M620,330 L620,360" class="flow" marker-end="url(#arrow)"/>
-  <text x="625" y="350" class="flow-label">persist</text>
-
-  <path d="M620,430 L620,470" class="flow" marker-end="url(#arrow)"/>
-  <text x="625" y="456" class="flow-label">JDBC</text>
-
-  <path d="M420,330 L420,470" class="flow" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
-  <text x="427" y="410" class="flow-label">DLQ</text>
-
-  <path d="M250,280 L310,280" class="flow" marker-end="url(#arrow)"/>
-  <text x="255" y="272" class="flow-label">build</text>
-
-  <path d="M250,380 L310,380" class="flow" marker-end="url(#arrow)"/>
-  <text x="255" y="372" class="flow-label">sync</text>
-
-  <path d="M620,450 L620,560" class="flow" stroke-dasharray="4,3"/>
-  <text x="625" y="550" class="flow-label">metrics / logs / traces</text>
-
-  <!-- Legend -->
-  <g transform="translate(30,660)">
-    <text x="0" y="0" class="zone-label">Legend</text>
-    <rect x="0" y="10" width="18" height="14" class="svc"/>
-    <text x="22" y="22" class="svc-tech">Platform service (EKS pod)</text>
-    <rect x="200" y="10" width="18" height="14" class="ext"/>
-    <text x="222" y="22" class="svc-tech">External / NHS national service</text>
-    <rect x="440" y="10" width="18" height="14" class="data"/>
-    <text x="462" y="22" class="svc-tech">Persistent data / secrets</text>
-    <rect x="640" y="10" width="18" height="14" class="obs"/>
-    <text x="662" y="22" class="svc-tech">Observability</text>
-    <rect x="800" y="10" width="18" height="14" class="sec"/>
-    <text x="822" y="22" class="svc-tech">CI/CD, GitOps</text>
-  </g>
-
-  <text x="30" y="745" class="subtitle">JD essentials covered: highly available distributed systems · AWS · Terraform · Kubernetes · CI/CD · GitOps · Observability · FHIR interoperability · NHS national service integration · DSPT/Caldicott controls · supplier-assurance mindset (security scanning + SBOM)</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="640" viewBox="0 0 1000 640" role="img" aria-label="One admission through the pipeline. A trust integration engine sends an HL7 v2 message over HTTP to the ingest service, which checks the MSH header, adds a trace ID and forwards it to transform over synchronous HTTP. Transform maps the message to a FHIR R4 transaction Bundle, enriches the patient through pds-client, which fails open, and writes the Bundle to a HAPI FHIR server backed by Postgres. If mapping or the write fails, the raw message is saved to a dead-letter folder. Prometheus scrapes every service, Grafana shows the dashboards and five alert rules watch the pipeline." xmlns:c2pa="http://c2pa.org/manifest"><metadata><c2pa:manifest>AAAWgmp1bWIAAAAeanVtZGMycGEAEQAQgAAAqgA4m3EDYzJwYQAAABZcanVtYgAAAEdqdW1kYzJtYQARABCAAACqADibcQN1cm46YzJwYToyOWMwMTlhNS1hNzUxLTQ2NmUtODk5Yi00YjJjYzQ5MDBjMDUAAAADl2p1bWIAAAApanVtZGMyYXMAEQAQgAAAqgA4m3EDYzJwYS5hc3NlcnRpb25zAAAAALxqdW1iAAAARGp1bWRjYm9yABEAEIAAAKoAOJtxE2MycGEuaW5ncmVkaWVudC52MwAAAAAYYzJzaC3CqQyL2Wmw3ROaMC/zqksAAABwY2JvcqNpZGM6Zm9ybWF0bWltYWdlL3N2Zyt4bWxqaW5zdGFuY2VJRHgseG1wOmlpZDo3NDU5YzdkNi1lYmQyLTRjOTMtYmNiZC04NGRkYjY0OTc4ZWJscmVsYXRpb25zaGlwaHBhcmVudE9mAAAB4mp1bWIAAABBanVtZGNib3IAEQAQgAAAqgA4m3ETYzJwYS5hY3Rpb25zLnYyAAAAABhjMnNoiCTgwqiMIQPGXh7M+SCYrwAAAZljYm9yomdhY3Rpb25zgqJmYWN0aW9ua2MycGEub3BlbmVkanBhcmFtZXRlcnOha2luZ3JlZGllbnRzgaJjdXJseC1zZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmluZ3JlZGllbnQudjNkaGFzaFggNgTOlYd7h7Eq+bOpF0A1nVarVsPYxdfu4VTdJh/PPU2kZmFjdGlvbngdY29tLmFudGhyb3BpYy5jbGF1ZGUucHJvdmlkZWRqcGFyYW1ldGVyc6F4H2NvbS5hbnRocm9waWMub3JpZ2luLWNvbmZpZGVuY2VndW5rbm93bmtkZXNjcmlwdGlvbnhmQ2xhdWRlIHByb3ZpZGVkIHRoaXMgZmlsZSBhdCB0aGUgcmVxdWVzdCBvZiBhIHVzZXIgYW5kIG1heSBoYXZlIGNyZWF0ZWQgb3IgbW9kaWZpZWQgdGhlIGZpbGUgY29udGVudHMubXNvZnR3YXJlQWdlbnShZG5hbWVmQ2xhdWRlcmFsbEFjdGlvbnNJbmNsdWRlZPUAAADIanVtYgAAAEBqdW1kY2JvcgARABCAAACqADibcRNjMnBhLmhhc2guZGF0YQAAAAAYYzJzaGKij8QTWW8yD3SSIR0/b4gAAACAY2JvcqVjYWxnZnNoYTI1NmNwYWRMAAAAAAAAAAAAAAAAZGhhc2hYIIYYOtm2Yv3E1MUtoiOtT1sMQtfKIMdvOdNBsNsnTCNhZG5hbWVuanVtYmYgbWFuaWZlc3RqZXhjbHVzaW9uc4GiZXN0YXJ0GQL5Zmxlbmd0aBkeBAAAAj5qdW1iAAAAJ2p1bWRjMmNsABEAEIAAAKoAOJtxA2MycGEuY2xhaW0udjIAAAACD2Nib3KlY2FsZ2ZzaGEyNTZpc2lnbmF0dXJleE1zZWxmI2p1bWJmPS9jMnBhL3VybjpjMnBhOjI5YzAxOWE1LWE3NTEtNDY2ZS04OTliLTRiMmNjNDkwMGMwNS9jMnBhLnNpZ25hdHVyZWppbnN0YW5jZUlEeCx4bXA6aWlkOjJjZjM2NTc2LWFkYzQtNDZlNS1hNTIzLWFmNzYwMWQ1Nzk3NHJjcmVhdGVkX2Fzc2VydGlvbnODomN1cmx4LXNlbGYjanVtYmY9YzJwYS5hc3NlcnRpb25zL2MycGEuaW5ncmVkaWVudC52M2RoYXNoWCA2BM6Vh3uHsSr5s6kXQDWdVqtWw9jF1+7hVN0mH889TaJjdXJseCpzZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmFjdGlvbnMudjJkaGFzaFggc7TyZ8PouJHtEIlYi/O++PY8pgGGufIXFPL9TDiUv1aiY3VybHgpc2VsZiNqdW1iZj1jMnBhLmFzc2VydGlvbnMvYzJwYS5oYXNoLmRhdGFkaGFzaFggtiHVjgRupY8VLD2HTCK4SknXGtefGf0ereOZ0buOj950Y2xhaW1fZ2VuZXJhdG9yX2luZm+jZG5hbWVvQW50aHJvcGljIEZpbGVzZ3ZlcnNpb25lMS4wLjBrc3BlY1ZlcnNpb25lMi40LjAAABA4anVtYgAAAChqdW1kYzJjcwARABCAAACqADibcQNjMnBhLnNpZ25hdHVyZQAAABAIY2JvctKEWQISogEmGCFZAgowggIGMIIBjaADAgECAhRA5aAK7sI50L64g/oGQgU9Z1UTADAKBggqhkjOPQQDAzBJMRcwFQYDVQQKEw5BbnRocm9waWMsIFBCQzEuMCwGA1UEAxMlQW50aHJvcGljIENvbnRlbnQgQ3JlZGVudGlhbHMgUm9vdCBDQTAeFw0yNjA4MDcxODQzNTZaFw0yODA4MDYxOTQzNTZaMEQxFzAVBgNVBAoTDkFudGhyb3BpYywgUEJDMSkwJwYDVQQDEyBBbnRocm9waWMgQ2xhdWRlIENvbnRlbnQgU2lnbmluZzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJh6CmvLUBgFFNU0vUKlOVtE6djd17L5SuwX0LemFisBM3dkd/3cyjxFA3Qo5S46fX0/ihY0VZ7mfb9KF703t5OjWDBWMA4GA1UdDwEB/wQEAwIHgDAVBgNVHSUEDjAMBgorBgEEAYPoXgIBMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUzlHiBIFOZFsj+OPEz5o+nMHXXMIwCgYIKoZIzj0EAwMDZwAwZAIwMXMdFJ4BetLLVY7ORuE9noqbbAZOZn/aArXyTwFAZfKrPzxF2vPoJNf1+UCdg1XGAjBwX1zd9WGqYkqmL5SFqw1QySjr1zJfpJM9+1rdDwSPLMOPOjKuiXjoU/pUUeG9RwmhY3BhZFkNngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPZYQAN7c76bnKvNDf/1lDLvlHz8z08GYaGusJNX6mwfNd4GTbLlKO0cm7apQqYbCpBX3U7ZPjBYvzjR8A1w6N3DqqU=</c2pa:manifest></metadata>
+<title>One admission through the pipeline. A trust integration engine sends an HL7 v2 message over HTTP to the ingest service, which checks the MSH header, adds a trace ID and forwards it to transform over synchronous HTTP. Transform maps the message to a FHIR R4 transaction Bundle, enriches the patient through pds-client, which fails open, and writes the Bundle to a HAPI FHIR server backed by Postgres. If mapping or the write fails, the raw message is saved to a dead-letter folder. Prometheus scrapes every service, Grafana shows the dashboards and five alert rules watch the pipeline.</title>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0D7377"/></marker><marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5A6472"/></marker><marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#B45309"/></marker></defs>
+<rect width="1000" height="640" fill="#F7F6F2"/>
+<text x="40" y="48" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="26" font-weight="700" fill="#18212B" text-anchor="start">One admission through the pipeline</text>
+<text x="40" y="80" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="16" fill="#5A6472">Everything here runs locally with <tspan font-family="'JetBrains Mono', 'SFMono-Regular', Consolas, monospace">make demo</tspan>, using example data only.</text>
+<rect x="40" y="268" width="196" height="140" rx="14" fill="#FFFFFF" stroke="#D6D9DD" stroke-width="2"/>
+<text x="56" y="300" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18.5" font-weight="600" fill="#18212B">Trust engine</text>
+<text x="56" y="326" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14.5" fill="#5A6472">sends HL7 v2</text>
+<text x="56" y="346" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14.5" fill="#5A6472">over HTTP</text>
+<rect x="284" y="268" width="186" height="140" rx="14" fill="#FFFFFF" stroke="#0D7377" stroke-width="2"/>
+<text x="300" y="300" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18.5" font-weight="600" fill="#18212B">ingest</text>
+<text x="300" y="326" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14.5" fill="#5A6472">checks the MSH</text>
+<text x="300" y="346" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14.5" fill="#5A6472">header and adds</text>
+<text x="300" y="366" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14.5" fill="#5A6472">a trace ID</text>
+<rect x="518" y="268" width="206" height="140" rx="14" fill="#FFFFFF" stroke="#0D7377" stroke-width="2"/>
+<text x="534" y="300" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18.5" font-weight="600" fill="#18212B">transform</text>
+<text x="534" y="326" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14.5" fill="#5A6472">maps HL7 v2 to a FHIR</text>
+<text x="534" y="346" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14.5" fill="#5A6472">R4 transaction Bundle</text>
+<rect x="772" y="268" width="188" height="140" rx="14" fill="#FFFFFF" stroke="#0D7377" stroke-width="2"/>
+<text x="788" y="300" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18.5" font-weight="600" fill="#18212B">HAPI FHIR</text>
+<text x="788" y="326" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14.5" fill="#5A6472">stores the Bundle</text>
+<text x="788" y="346" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14.5" fill="#5A6472">in Postgres</text>
+<rect x="518" y="102" width="206" height="108" rx="14" fill="#FFFFFF" stroke="#D6D9DD" stroke-width="2"/>
+<text x="534" y="134" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18.5" font-weight="600" fill="#18212B">pds-client</text>
+<text x="534" y="160" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14.5" fill="#5A6472">looks up the patient:</text>
+<text x="534" y="180" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14.5" fill="#5A6472">a stub by default</text>
+<rect x="518" y="452" width="206" height="104" rx="14" fill="#FBEEDC" stroke="#B45309" stroke-width="2"/>
+<text x="534" y="484" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18.5" font-weight="600" fill="#18212B">dead-letter folder</text>
+<text x="534" y="510" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14.5" fill="#5A6472">raw message saved;</text>
+<text x="534" y="530" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14.5" fill="#5A6472">replay is manual</text>
+<line x1="238" y1="338" x2="280" y2="338" stroke="#5A6472" stroke-width="2.5" marker-end="url(#ag)"/>
+<line x1="472" y1="338" x2="514" y2="338" stroke="#0D7377" stroke-width="2.5" marker-end="url(#ah)"/>
+<line x1="726" y1="338" x2="768" y2="338" stroke="#0D7377" stroke-width="2.5" marker-end="url(#ah)"/>
+<line x1="621" y1="264" x2="621" y2="214" stroke="#5A6472" stroke-width="2.5" marker-end="url(#ag)" marker-start="url(#ag)"/>
+<line x1="621" y1="412" x2="621" y2="448" stroke="#B45309" stroke-width="2.5" marker-end="url(#aa)" stroke-dasharray="6 5"/>
+<text x="636" y="232" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#5A6472" text-anchor="start">enrich, fail open</text>
+<text x="636" y="428" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#B45309" text-anchor="start">mapping or write fails</text>
+<text x="284" y="432" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" fill="#5A6472"><tspan x="284"><tspan font-family="'JetBrains Mono', 'SFMono-Regular', Consolas, monospace">ingest</tspan> to <tspan font-family="'JetBrains Mono', 'SFMono-Regular', Consolas, monospace">transform</tspan> is</tspan><tspan x="284" dy="19">synchronous HTTP today.</tspan><tspan x="284" dy="19">SQS FIFO is roadmap item 1.</tspan></text>
+<rect x="40" y="580" width="920" height="40" rx="12" fill="#ECEEEA"/>
+<text x="255" y="606" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="400" fill="#18212B" text-anchor="middle">Prometheus scrapes every service</text>
+<text x="395" y="606" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="400" fill="#5A6472" text-anchor="middle">·</text>
+<text x="500" y="606" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="400" fill="#18212B" text-anchor="middle">Grafana dashboards</text>
+<text x="618" y="606" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="400" fill="#5A6472" text-anchor="middle">·</text>
+<text x="710" y="606" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="400" fill="#18212B" text-anchor="middle">five alert rules</text>
 </svg>
