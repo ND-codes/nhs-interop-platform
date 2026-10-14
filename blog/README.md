@@ -6,7 +6,7 @@ The articles are published on dev.to. The drafts live in this folder, and each a
 
 | Part | Article | Planned | Code tag | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Why NHS trusts need an HL7 v2 to FHIR layer, and how this one is built | 14 Oct 2026 | `part-1` | Planned |
+| 1 | [Why NHS trusts need an HL7 v2 to FHIR layer, and how this one is built](https://dev.to/ndcodes/part-1-why-nhs-trusts-need-an-hl7-v2-to-fhir-layer-and-how-this-one-is-built-kkm) | 14 Oct 2026 | `part-1` | Published |
 | 2 | From `docker compose up` to Terraform on AWS | 21 Oct 2026 | `part-2` | Planned |
 | 3 | Mapping HL7 v2 ADT messages to FHIR R4 | 4 Nov 2026 | `part-3` | Planned |
 | 4 | Observability from day one | 18 Nov 2026 | `part-4` | Planned |
