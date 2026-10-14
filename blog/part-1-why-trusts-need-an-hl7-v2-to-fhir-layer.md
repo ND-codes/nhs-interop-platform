@@ -6,7 +6,7 @@ tags: healthcare, architecture, devops, python
 series: Building an NHS Interop Platform
 ---
 
-I run an electronic patient record (EPR) platform in UK healthcare.
+Hi I'm Nnamdi.
 
 This series walks through a project I built around one question: how does a patient's data get from a hospital system that speaks HL7 v2 to services that expect FHIR? Part 1 covers the problem and the architecture. The next six parts go deeper, one area at a time.
 
