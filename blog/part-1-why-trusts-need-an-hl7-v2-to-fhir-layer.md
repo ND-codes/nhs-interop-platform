@@ -10,6 +10,8 @@ Hi I'm Nnamdi.
 
 This series walks through a project I built around one question: how does a patient's data get from a hospital system that speaks HL7 v2 to services that expect FHIR? Part 1 covers the problem and the architecture. The next six parts go deeper, one area at a time.
 
+New to the field? There's a list of every acronym in this article [near the end](#acronyms-used-in-this-article).
+
 ## The problem
 
 Two standards meet here.
@@ -163,11 +165,49 @@ The rule I'm keeping: AI drafts, and the specification, the tests and the runnin
 
 I'd use SQS from the start, not a synchronous HTTP hand-off. Right now, if `transform` is down, `ingest` logs the error and still replies 200, marked `forwarded: false`, and nothing retries the message. That is the same failure as the one above, one service earlier, and the dead-letter folder doesn't help because the message never reached the service that owns it. A queue makes the hand-off durable instead of hopeful. It's the first item on the roadmap, and Part 6 shows the fix.
 
+## Acronyms used in this article
+
+| Acronym | Stands for | What it means here |
+| --- | --- | --- |
+| ADT | Admission, Discharge and Transfer | The family of HL7 v2 messages a hospital sends when a patient is admitted, moved or sent home |
+| A01 | Admit/Visit Notification | The ADT event for a patient being admitted |
+| AI | Artificial intelligence | Here, the coding assistant used to draft parts of the project |
+| API | Application programming interface | A defined way for one piece of software to ask another for data |
+| AWS | Amazon Web Services | Amazon's cloud platform, where the project is designed to run |
+| CD | Continuous delivery | Shipping changes automatically once they pass checks (as in Argo CD) |
+| DLQ | Dead-letter queue | A holding place for messages that couldn't be processed, so they aren't lost. This project uses a folder |
+| EKS | Elastic Kubernetes Service | Amazon's managed service for running containers with Kubernetes |
+| EVN | Event Type segment | The line of an HL7 v2 message that says what happened and when |
+| FHIR | Fast Healthcare Interoperability Resources | The modern health data standard, built on web technology |
+| HAPI | HL7 application programming interface | An open-source project; HAPI FHIR is the FHIR server used here |
+| HL7 | Health Level Seven | The organisation behind both standards. The "Seven" refers to the top layer of a standard networking model, where applications talk to each other |
+| HTTP | Hypertext Transfer Protocol | The protocol web browsers and web services use to talk |
+| IAM | Identity and Access Management | AWS's system for who and what is allowed to do what |
+| IMP | Inpatient | The FHIR code for a patient admitted to a ward |
+| JSON | JavaScript Object Notation | A common text format for structured data |
+| KMS | Key Management Service | AWS's service for managing encryption keys |
+| MSH | Message Header segment | The first line of every HL7 v2 message: who sent it, to whom, and what type it is |
+| NHS | National Health Service | The UK's public health service |
+| PDS | Personal Demographics Service | The national database of NHS patient details, such as name, address and NHS number |
+| PID | Patient Identification segment | The line of an HL7 v2 message that describes the patient |
+| PV1 | Patient Visit segment | The line of an HL7 v2 message that describes the hospital stay |
+| R4 | Release 4 | The version of FHIR this project uses |
+| RDS | Relational Database Service | Amazon's managed database service |
+| REST | Representational State Transfer | A common style for building web APIs |
+| S3 | Simple Storage Service | Amazon's file storage service |
+| SQS | Simple Queue Service | Amazon's message queue service, which holds messages until they're processed |
+| v2, V3 | Version 2, Version 3 | Versions of the HL7 standard. v2 is the older, widely used one |
+| VPC | Virtual Private Cloud | A private, isolated network inside AWS |
+| XML | Extensible Markup Language | An older text format for structured data |
+
 ## Sources
 
 - [HL7 International: HL7 Version 2 product brief](https://www.hl7.org/implement/standards/product_brief.cfm?product_id=185)
 - [HL7 v2.5.1, Chapter 2: Control (hosted by HL7 Europe)](https://www.hl7.eu/HL7v2x/v251/std251/ch02.html)
 - [HL7 v2.5.1, Chapter 3: Patient Administration (hosted by HL7 Europe)](https://www.hl7.eu/HL7v2x/v251/std251/ch03.html)
+- [HL7 v2.7, Chapter 1: Introduction, on the name "Level 7" (hosted by HL7 Europe)](https://www.hl7.eu/HL7v2x/v27/std27/ch01.html)
+- [HL7 v2.2, Chapter 3: Admission, Discharge, and Transfer (hosted by HL7 Europe)](https://www.hl7.eu/HL7v2x/v22/std22/HL7CHP3.html)
+- [HL7 FHIR R4: Summary](https://hl7.org/fhir/R4/summary.html)
 - [HL7 FHIR R4: RESTful API, batch and transaction](https://hl7.org/fhir/R4/http.html)
 - [NHS service manual: Personal Demographics Service](https://service-manual.nhs.uk/standards-and-technology/technology/personal-demographics-service-PDS)
 - [NHS England: Personal Demographics Service FHIR API](https://digital.nhs.uk/developer/api-catalogue/personal-demographics-service-fhir)
