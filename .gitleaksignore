@@ -1,0 +1,4 @@
+# A PDS API key was committed to .env.example in 61c3526 on 26 Apr 2026 and
+# blanked in the next commit. It stays in the public history. The key was
+# revoked on 21 Oct 2026, so this finding is accepted.
+61c35263527810476616ed19c5e15dd3e62cc33e:.env.example:generic-api-key:7

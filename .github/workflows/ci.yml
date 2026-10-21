@@ -153,12 +153,14 @@ jobs:
             "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
           tar -xzf trivy.tar.gz trivy
           ./trivy --version
-      # Everything is reported, so nothing is hidden. Only HIGH and CRITICAL
-      # fail the build; the medium and low findings are on the roadmap.
+      # Everything is reported, so nothing is hidden, including the finding
+      # accepted in .trivyignore.yaml. Only HIGH and CRITICAL fail the build;
+      # the medium and low findings are on the roadmap.
+      # `trivy config` has no --no-progress flag; it exits on an unknown flag.
       - name: Report every misconfiguration
-        run: ./trivy config infra/terraform --no-progress
+        run: ./trivy config infra/terraform
       - name: Fail on HIGH or CRITICAL
-        run: ./trivy config infra/terraform --severity HIGH,CRITICAL --exit-code 1 --no-progress
+        run: ./trivy config infra/terraform --severity HIGH,CRITICAL --exit-code 1 --ignorefile .trivyignore.yaml
 
   image:
     name: image (${{ matrix.service }})

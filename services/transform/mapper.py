@@ -158,7 +158,7 @@ def _value_quantity(value: str, units: str | None) -> dict[str, Any]:
 
 
 def map_medication_requests(msg: hl7.Message, patient_ref: str) -> list[dict[str, Any]]:
-    requests: list[dict[str, Any]] = []
+    medication_requests: list[dict[str, Any]] = []
     for seg_name in ("RXE", "RXA"):
         try:
             segments = msg.segments(seg_name)
@@ -170,7 +170,7 @@ def map_medication_requests(msg: hl7.Message, patient_ref: str) -> list[dict[str
             display = _field(seg, 2, 1) if seg_name == "RXE" else _field(seg, 5, 1)
             if not code:
                 continue
-            requests.append(
+            medication_requests.append(
                 {
                     "resourceType": "MedicationRequest",
                     "status": "active",
@@ -187,7 +187,7 @@ def map_medication_requests(msg: hl7.Message, patient_ref: str) -> list[dict[str
                     "subject": {"reference": patient_ref},
                 }
             )
-    return requests
+    return medication_requests
 
 
 def map_message_header(msg: hl7.Message, trace_id: str) -> dict[str, Any]:

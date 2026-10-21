@@ -9,10 +9,10 @@ module "eks" {
   subnet_ids               = module.vpc.private_subnets
   control_plane_subnet_ids = module.vpc.private_subnets
 
-  # API endpoint is private by default; grant access to the CI runner via
-  # the public endpoint + CIDR allow-list when needed.
-  cluster_endpoint_public_access       = true
-  cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"] # tighten in prod
+  # API endpoint is reachable from inside the VPC only. Nothing outside needs
+  # it: Argo CD pulls from inside the cluster. kubectl from a laptop needs a
+  # bastion or VPN.
+  cluster_endpoint_public_access = false
 
   # Secrets encrypted at rest with our own CMK.
   cluster_encryption_config = {

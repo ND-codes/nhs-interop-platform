@@ -1,0 +1,8 @@
+# Accepted Trivy findings. Each entry is scoped to one path and says why.
+# The CI gate reads this file; the report step does not, so accepted
+# findings are still printed on every run.
+misconfigurations:
+  - id: AWS-0104
+    paths:
+      - "terraform-aws-modules/eks/aws/node_groups.tf"
+    statement: "EKS nodes need outbound internet to pull images and to reach the NHS PDS API"
