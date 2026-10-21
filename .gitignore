@@ -20,7 +20,6 @@ infra/terraform/.terraform/
 *.tfstate.*
 *.tfplan
 tfplan
-.terraform.lock.hcl
 
 # IDE
 .vscode/
