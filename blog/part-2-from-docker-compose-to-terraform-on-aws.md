@@ -241,4 +241,4 @@ What does your pipeline check that you have never watched fail?
 
 ---
 
-This is a personal project. It is not affiliated with or endorsed by NHS England or any NHS organisation. It uses the public PDS FHIR sandbox and synthetic test data only. Views are my own.
+This is a personal project. It is not affiliated with or endorsed by NHS England or any NHS organisation. It uses the public PDS FHIR sandbox and, earlier in the project, the PDS integration test environment, with synthetic test data only. Views are my own.
