@@ -1,1 +1,14 @@
-# Gitleaks config - ignore false positives in vendored terraform modules
+# Gitleaks configuration.
+#
+# [extend] is load-bearing. Without it a custom config REPLACES the built-in
+# rules rather than adding to them, so a config holding only comments and an
+# allowlist makes gitleaks match nothing and exit 0 on every scan.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Vendored Terraform providers and modules produce false positives"
+paths = [
+  '''^infra/terraform/\.terraform/''',
+  '''^docs/terraform-plan\.txt$''',
+]

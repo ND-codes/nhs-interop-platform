@@ -1,0 +1,206 @@
+# Every change walks through these checks before it lands on master.
+# Ported from .gitlab-ci.yml, which still describes the GitLab pipeline.
+#
+# Tool versions are pinned on purpose. A security job that silently stops
+# checking is worse than no job at all, and a floating "latest" tag is how
+# that happens.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+# Read-only by default. No job here needs to write to the repository.
+permissions:
+  contents: read
+
+# A new push to the same branch cancels the run already in flight.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUFF_VERSION: "0.6.9"
+  PYTEST_COV_VERSION: "7.1.0"
+  GITLEAKS_VERSION: "8.28.0"
+  SEMGREP_VERSION: "1.181.0"
+  TRIVY_VERSION: "0.76.0"
+  SYFT_VERSION: "1.33.0"
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  lint:
+    name: lint (${{ matrix.service }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [ingest, transform, pds-client]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install ruff
+        run: pip install --quiet "ruff==${RUFF_VERSION}"
+      - name: ruff check
+        working-directory: services/${{ matrix.service }}
+        run: ruff check .
+
+  test:
+    name: test (${{ matrix.service }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [ingest, transform, pds-client]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: services/${{ matrix.service }}/requirements-dev.txt
+      - name: Install dependencies
+        working-directory: services/${{ matrix.service }}
+        run: pip install --quiet -r requirements-dev.txt
+      - name: pytest with coverage
+        working-directory: services/${{ matrix.service }}
+        run: pytest -q --junitxml=junit.xml --cov=. --cov-report=xml --cov-report=term
+      - name: Upload test and coverage reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports-${{ matrix.service }}
+          path: |
+            services/${{ matrix.service }}/junit.xml
+            services/${{ matrix.service }}/coverage.xml
+          retention-days: 30
+
+  secrets:
+    name: secret scan
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks
+        run: |
+          curl -sSfL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar -xzf gitleaks.tar.gz gitleaks
+          ./gitleaks version
+      # `dir` replaces `detect`, which gitleaks deprecated in v8.19.0.
+      # Gitleaks already exits 1 on a finding; --exit-code 1 is here to say so
+      # out loud, because semgrep and trivy below both need to be told.
+      - name: Scan the working tree
+        run: ./gitleaks dir . --redact --no-banner --exit-code 1
+      - name: Scan the git history
+        run: ./gitleaks git . --redact --no-banner --exit-code 1
+
+  sast:
+    name: static analysis
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install semgrep
+        run: pip install --quiet "semgrep==${SEMGREP_VERSION}"
+      # --error turns findings into a non-zero exit. Without it semgrep
+      # prints its findings and the job still passes.
+      - name: semgrep
+        run: |
+          semgrep \
+            --config p/ci \
+            --config p/python \
+            --config p/security-audit \
+            --error \
+            --metrics=off \
+            services/
+
+  terraform:
+    name: terraform
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.9.8"
+      - name: terraform fmt
+        run: terraform fmt -check -recursive
+        working-directory: infra/terraform
+      # -backend=false initialises the providers without touching remote
+      # state, so validate needs no AWS credentials.
+      - name: terraform init
+        run: terraform init -backend=false -input=false
+        working-directory: infra/terraform
+      - name: terraform validate
+        run: terraform validate
+        working-directory: infra/terraform
+
+  iac-scan:
+    name: iac scan
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install trivy
+        run: |
+          curl -sSfL -o trivy.tar.gz \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          tar -xzf trivy.tar.gz trivy
+          ./trivy --version
+      # Everything is reported, so nothing is hidden. Only HIGH and CRITICAL
+      # fail the build; the medium and low findings are on the roadmap.
+      - name: Report every misconfiguration
+        run: ./trivy config infra/terraform --no-progress
+      - name: Fail on HIGH or CRITICAL
+        run: ./trivy config infra/terraform --severity HIGH,CRITICAL --exit-code 1 --no-progress
+
+  image:
+    name: image (${{ matrix.service }})
+    runs-on: ubuntu-24.04
+    needs: [lint, test]
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [ingest, transform, pds-client]
+    steps:
+      - uses: actions/checkout@v7
+      # Built and scanned, not pushed. There is nowhere to deploy to yet:
+      # the Terraform has only ever been planned, never applied.
+      - name: Build the image
+        run: |
+          docker build \
+            --tag "nhs-interop/${{ matrix.service }}:${GITHUB_SHA::7}" \
+            --target runtime \
+            "services/${{ matrix.service }}"
+      - name: Install trivy and syft
+        run: |
+          curl -sSfL -o trivy.tar.gz \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          tar -xzf trivy.tar.gz trivy
+          curl -sSfL -o syft.tar.gz \
+            "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_amd64.tar.gz"
+          tar -xzf syft.tar.gz syft
+      - name: Scan the image
+        run: |
+          ./trivy image \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            --ignore-unfixed \
+            --no-progress \
+            "nhs-interop/${{ matrix.service }}:${GITHUB_SHA::7}"
+      - name: Generate the SBOM
+        run: |
+          ./syft "docker:nhs-interop/${{ matrix.service }}:${GITHUB_SHA::7}" \
+            -o spdx-json="${{ matrix.service }}.sbom.json"
+      - name: Upload the SBOM
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbom-${{ matrix.service }}
+          path: ${{ matrix.service }}.sbom.json
+          retention-days: 90

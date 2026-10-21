@@ -11,7 +11,7 @@ resource "aws_db_subnet_group" "hapi" {
 
 resource "aws_security_group" "rds" {
   name        = "${local.name}-rds-sg"
-  description = "HAPI FHIR Postgres — ingress from EKS nodes only"
+  description = "HAPI FHIR Postgres, ingress from EKS nodes only"
   vpc_id      = module.vpc.vpc_id
 
   ingress {
@@ -22,10 +22,11 @@ resource "aws_security_group" "rds" {
     security_groups = [module.eks.node_security_group_id]
   }
   egress {
+    description = "Postgres has no need to reach the public internet"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.vpc_cidr]
   }
   tags = local.common_tags
 }
@@ -64,7 +65,7 @@ resource "aws_db_instance" "hapi" {
   tags = local.common_tags
 }
 
-# Store the generated password in Secrets Manager — never a plain output.
+# Store the generated password in Secrets Manager, never a plain output.
 resource "aws_secretsmanager_secret" "db" {
   name       = "${local.name}/hapi-db"
   kms_key_id = aws_kms_key.rds.arn
