@@ -40,7 +40,9 @@ def test_maps_patient_and_encounter() -> None:
         for i in patient["identifier"]
     )
     assert patient["name"][0]["family"] == "DOE"
-    assert patient["name"][0]["given"] == ["JOHN"]
+    # The fixture's PID-5 is DOE^JOHN^A. This used to assert ["JOHN"], which
+    # matched what the mapper did rather than what the segment said.
+    assert patient["name"][0]["given"] == ["JOHN", "A"]
 
 
 def test_extracts_nhs_number() -> None:
