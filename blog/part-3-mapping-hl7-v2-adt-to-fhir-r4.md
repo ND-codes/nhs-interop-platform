@@ -196,8 +196,6 @@ Let the message decide the shape. OBX-2 exists precisely to tell you what kind o
 
 ## Where AI helps here, and where it doesn't
 
-I built this project with Claude Code. [Felix: one line on how you used it this week.]
-
 The fixes were quick to write once I knew what was wrong. The escape decoder, the date precision logic, the OBX-2 branch: all small, well-specified, mechanical.
 
 Finding them was a different activity, and it was not reading. It was constructing awkward messages, running them through, and looking at the JSON. A patient with a middle initial. A date of birth with a time zone. A name with an ampersand. A culture result that says POSITIVE. None of those are exotic, and every one of those defects is invisible in a code review, because each line is individually reasonable.
