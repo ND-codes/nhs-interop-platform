@@ -54,6 +54,9 @@ groups:
           runbook: "docs/runbook.md#dlq"
 
       # --- Saturation --------------------------------------------------------
+      # transform exports pybreaker_state from a CircuitBreakerListener. Until
+      # that existed this rule could not fire, because nothing published the
+      # series it reads.
       - alert: PDSCircuitOpen
         expr: pybreaker_state{name="pds"} == 1
         for: 2m
@@ -61,5 +64,47 @@ groups:
           severity: warning
           team: interop
         annotations:
-          summary: "PDS circuit breaker is open — pipeline is running with local demographics only"
+          summary: "PDS circuit breaker is open, so the pipeline is running on message demographics only"
           runbook: "docs/runbook.md#pds-circuit"
+
+      # --- Silent data loss ----------------------------------------------------
+      # A field that does not reach FHIR used to leave no trace at all: the
+      # message returned 200 and the Bundle validated without it.
+      - alert: FieldsDroppedRateHigh
+        expr: sum(rate(hl7_field_dropped_total{reason="unparseable_date"}[15m])) > 0.05
+        for: 15m
+        labels:
+          severity: warning
+          team: interop
+        annotations:
+          summary: "Dates are failing to parse at more than 3/min, so birth dates are being lost"
+          runbook: "docs/runbook.md#fields-dropped"
+
+      # An identifier arriving as an NHS number that fails its Modulus 11 check
+      # digit. One is a typo. A steady rate is a sending system with a different
+      # numbering scheme, such as a Scottish CHI number in the NHS Number field.
+      - alert: InvalidNhsNumbers
+        expr: sum(rate(nhs_number_invalid_total[30m])) > 0
+        for: 30m
+        labels:
+          severity: warning
+          team: interop
+        annotations:
+          summary: "Identifiers are arriving as NHS numbers that fail their check digit"
+          runbook: "docs/runbook.md#invalid-nhs-number"
+
+      # Patients written with no NHS number to key on get an unconditional
+      # create, so a resend makes a duplicate. A rising share means matching is
+      # degrading, which is invisible in the success rate.
+      - alert: PatientWritesWithoutIdentity
+        expr: |
+          sum(rate(patient_write_total{identity="none"}[30m]))
+            / clamp_min(sum(rate(patient_write_total[30m])), 0.001)
+            > 0.1
+        for: 30m
+        labels:
+          severity: warning
+          team: interop
+        annotations:
+          summary: "More than 10% of patient writes have no NHS number to match on"
+          runbook: "docs/runbook.md#patient-identity"

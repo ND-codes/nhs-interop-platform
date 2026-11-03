@@ -36,6 +36,21 @@ ps: ## Show running containers
 clean: ## Stop stack and remove volumes (destroys Postgres + DLQ data)
 	docker compose down -v
 
+.PHONY: break-pds restore-pds break-fhir restore-fhir
+break-pds: ## Open the PDS circuit breaker on purpose, to watch PDSCircuitOpen fire
+	./scripts/break-pds.sh
+restore-pds: ## Start pds-client again and close the breaker
+	./scripts/restore-pds.sh
+break-fhir: ## Stop HAPI FHIR so messages dead-letter, to watch DLQRateHigh fire
+	./scripts/break-fhir.sh
+restore-fhir: ## Start HAPI FHIR again
+	./scripts/restore-fhir.sh
+
+.PHONY: alerts
+alerts: ## Check and unit test the Prometheus alert rules (needs promtool)
+	promtool check rules observability/prometheus/alerts.yml
+	cd observability/prometheus && promtool test rules alerts_test.yml
+
 .PHONY: test
 test: ## Run unit tests for every service in a throwaway container
 	@for svc in $(SERVICES); do \

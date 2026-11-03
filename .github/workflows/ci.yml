@@ -28,6 +28,7 @@ env:
   SEMGREP_VERSION: "1.181.0"
   TRIVY_VERSION: "0.76.0"
   SYFT_VERSION: "1.33.0"
+  PROMETHEUS_VERSION: "3.6.0"
   PYTHON_VERSION: "3.12"
 
 jobs:
@@ -141,6 +142,27 @@ jobs:
       - name: terraform validate
         run: terraform validate
         working-directory: infra/terraform
+
+  alerts:
+    name: alert rules
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install promtool
+        run: |
+          curl -sSfL -o prometheus.tar.gz \
+            "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz"
+          tar -xzf prometheus.tar.gz --strip-components=1 \
+            "prometheus-${PROMETHEUS_VERSION}.linux-amd64/promtool"
+          ./promtool --version
+      # An alert rule normally only runs during an incident. PDSCircuitOpen sat
+      # here for weeks watching a series no service exported, and nothing said
+      # so. These two steps are what would have caught it.
+      - name: Check the rules parse
+        run: ./promtool check rules observability/prometheus/alerts.yml
+      - name: Run the alert rule tests
+        working-directory: observability/prometheus
+        run: ../../promtool test rules alerts_test.yml
 
   iac-scan:
     name: iac scan
