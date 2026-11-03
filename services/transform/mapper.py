@@ -23,6 +23,30 @@ import hl7
 NHS_IDENTIFIER_SYSTEM = "https://fhir.nhs.uk/Id/nhs-number"
 LOCAL_IDENTIFIER_SYSTEM = "https://fhir.nhs.uk/Id/local-patient-identifier"
 
+
+def is_valid_nhs_number(value: str | None) -> bool:
+    """Validate an NHS number against its Modulus 11 check digit.
+
+    The NHS Data Dictionary describes the algorithm and says "the use of this
+    algorithm is mandatory": multiply the first nine digits by the weights 10
+    down to 2, sum them, take the remainder modulo 11, and subtract it from
+    11. A result of 11 means a check digit of 0, and "If the result is 10 then
+    the NHS NUMBER is invalid and not used".
+
+    This matters more than a format check. A Scottish CHI number is also ten
+    digits and can arrive in the same field, and it will not satisfy this
+    rule. Anything that fails here is not safe to match a patient on.
+    """
+    if value is None or len(value) != 10 or not value.isdigit():
+        return False
+    total = sum(int(d) * w for d, w in zip(value[:9], range(10, 1, -1)))
+    check = 11 - (total % 11)
+    if check == 11:
+        check = 0
+    if check == 10:
+        return False
+    return check == int(value[9])
+
 # HL7's v2-to-FHIR concept map for table 0001, which rates every one of these
 # "is equivalent to". A is ambiguous and N is not applicable; both are `other`
 # rather than `unknown`, because the sender knew the answer and it was neither
@@ -124,10 +148,50 @@ def _field(seg, idx: int, comp: int | None = None) -> str | None:
         return parts[comp].strip() if comp < len(parts) else None
 
 
-def _parse(message: str) -> hl7.Message:
-    # HL7 v2 uses \r as segment terminator; normalise both \r\n and \n.
+def parse_message(message: str) -> hl7.Message:
+    """Parse a raw HL7 v2 message.
+
+    v2 terminates segments with a carriage return, but files and editors add
+    line feeds, so both are normalised to carriage returns first.
+    """
     normalised = message.replace("\r\n", "\r").replace("\n", "\r").strip()
     return hl7.parse(normalised)
+
+
+# Kept so existing callers and tests continue to work.
+_parse = parse_message
+
+
+def dropped_fields(msg: hl7.Message) -> list[tuple[str, str, str]]:
+    """Fields the message carried that the mapping does not reach.
+
+    Returns (segment, field, reason) so the caller can count them. This is
+    deliberately explicit rather than inferred: the mapper knows which fields
+    it reads, and everything in this list is a decision, not an accident.
+    """
+    dropped: list[tuple[str, str, str]] = []
+    try:
+        pid = msg.segment("PID")
+    except KeyError:
+        return dropped
+
+    if _field(pid, 7) and not hl7_to_fhir_date(_field(pid, 7)):
+        dropped.append(("PID", "7", "unparseable_date"))
+    if _field(pid, 11):
+        dropped.append(("PID", "11", "not_mapped"))
+    if _field(pid, 13):
+        dropped.append(("PID", "13", "not_mapped"))
+
+    try:
+        pv1 = msg.segment("PV1")
+    except KeyError:
+        pv1 = None
+    if pv1 is not None:
+        if _field(pv1, 19):
+            dropped.append(("PV1", "19", "not_mapped"))
+        if _field(pv1, 44):
+            dropped.append(("PV1", "44", "not_mapped"))
+    return dropped
 
 
 def map_patient(msg: hl7.Message) -> dict[str, Any]:
@@ -421,8 +485,26 @@ def map_message(raw: str, trace_id: str) -> dict[str, Any]:
 
 
 def extract_nhs_number(patient: dict[str, Any]) -> str | None:
-    """Return the NHS number from a Patient resource if present."""
+    """Return the NHS number from a Patient resource, if it validates.
+
+    An identifier that fails the check digit is still carried on the resource,
+    because the sender did send it and dropping it loses information. It is
+    not returned here, so it is never used to look a patient up in PDS or to
+    key a conditional update. A wrong identity is worse than no identity.
+    """
     for ident in patient.get("identifier", []) or []:
         if ident.get("system") == NHS_IDENTIFIER_SYSTEM and ident.get("value"):
-            return ident["value"]
+            if is_valid_nhs_number(ident["value"]):
+                return ident["value"]
     return None
+
+
+def invalid_nhs_numbers(patient: dict[str, Any]) -> list[str]:
+    """Identifiers claiming to be NHS numbers that do not validate."""
+    return [
+        ident["value"]
+        for ident in patient.get("identifier", []) or []
+        if ident.get("system") == NHS_IDENTIFIER_SYSTEM
+        and ident.get("value")
+        and not is_valid_nhs_number(ident["value"])
+    ]

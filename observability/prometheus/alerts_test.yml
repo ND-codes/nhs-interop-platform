@@ -1,0 +1,138 @@
+# Unit tests for the alerting rules, run with:
+#   promtool test rules observability/prometheus/alerts_test.yml
+#
+# These exist because an alert rule is code that normally only runs during an
+# incident. PDSCircuitOpen sat in this repo for weeks watching a series no
+# service exported, and nothing in the build said so.
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  # --- the alert that could not fire --------------------------------------
+  - interval: 1m
+    name: PDSCircuitOpen fires once the breaker is open
+    input_series:
+      - series: 'pybreaker_state{name="pds"}'
+        values: "0x5 1x10"
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: PDSCircuitOpen
+        exp_alerts: []
+      - eval_time: 9m
+        alertname: PDSCircuitOpen
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              team: interop
+              name: pds
+            exp_annotations:
+              summary: "PDS circuit breaker is open, so the pipeline is running on message demographics only"
+              runbook: "docs/runbook.md#pds-circuit"
+
+  # This is the state the repo was actually in: the rule was correct, and no
+  # service published pybreaker_state, so there was nothing for it to read.
+  # A rule watching a series nobody exports is indistinguishable from a
+  # healthy system.
+  - interval: 1m
+    name: with no series exported the rule is silent, which was the bug
+    input_series:
+      - series: 'up{job="transform"}'
+        values: "1x20"
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: PDSCircuitOpen
+        exp_alerts: []
+
+  - interval: 1m
+    name: PDSCircuitOpen stays quiet while the breaker is closed
+    input_series:
+      - series: 'pybreaker_state{name="pds"}'
+        values: "0x20"
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: PDSCircuitOpen
+        exp_alerts: []
+
+  - interval: 1m
+    name: half-open does not fire, only open does
+    input_series:
+      - series: 'pybreaker_state{name="pds"}'
+        values: "2x20"
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: PDSCircuitOpen
+        exp_alerts: []
+
+  # --- silent data loss ----------------------------------------------------
+  - interval: 1m
+    name: a steady rate of unparseable dates alerts
+    input_series:
+      - series: 'hl7_field_dropped_total{segment="PID",field="7",reason="unparseable_date"}'
+        values: "0+6x40"
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: FieldsDroppedRateHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              team: interop
+            exp_annotations:
+              summary: "Dates are failing to parse at more than 3/min, so birth dates are being lost"
+              runbook: "docs/runbook.md#fields-dropped"
+
+  - interval: 1m
+    name: an unmapped address does not trip the date alert
+    input_series:
+      - series: 'hl7_field_dropped_total{segment="PID",field="11",reason="not_mapped"}'
+        values: "0+60x40"
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: FieldsDroppedRateHigh
+        exp_alerts: []
+
+  # --- the identity key ----------------------------------------------------
+  - interval: 1m
+    name: any sustained rate of invalid NHS numbers alerts
+    input_series:
+      - series: "nhs_number_invalid_total"
+        values: "0+1x60"
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: InvalidNhsNumbers
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              team: interop
+            exp_annotations:
+              summary: "Identifiers are arriving as NHS numbers that fail their check digit"
+              runbook: "docs/runbook.md#invalid-nhs-number"
+
+  - interval: 1m
+    name: patient writes with no identity alert once they pass a tenth
+    input_series:
+      - series: 'patient_write_total{identity="nhs_number"}'
+        values: "0+1x60"
+      - series: 'patient_write_total{identity="none"}'
+        values: "0+1x60"
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: PatientWritesWithoutIdentity
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              team: interop
+            exp_annotations:
+              summary: "More than 10% of patient writes have no NHS number to match on"
+              runbook: "docs/runbook.md#patient-identity"
+
+  - interval: 1m
+    name: an all-matched stream does not alert
+    input_series:
+      - series: 'patient_write_total{identity="nhs_number"}'
+        values: "0+1x60"
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: PatientWritesWithoutIdentity
+        exp_alerts: []

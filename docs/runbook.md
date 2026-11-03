@@ -96,6 +96,85 @@ One entry per alert. Each entry has: what fires, what it means, what to check, w
 
 ---
 
+## 6. `FieldsDroppedRateHigh`
+
+Anchor: `#fields-dropped`
+
+**What it means.** Fields present in the incoming message are not reaching the
+FHIR resource. The rule watches unparseable dates specifically, because a lost
+date of birth is the one that matters most for matching.
+
+**What it does not mean.** The messages are succeeding. This alert fires on a
+pipeline that is returning 200 and writing valid Bundles. Nothing is in the
+dead-letter folder.
+
+**Triage.**
+
+1. `sum by (segment, field, reason) (rate(hl7_field_dropped_total[15m]))` to see
+   which field.
+2. `reason="not_mapped"` is expected for PID-11, PID-13, PV1-19 and PV1-44.
+   Those are known gaps listed in `docs/hl7-fhir-mapping.md`, not incidents.
+3. `reason="unparseable_date"` is the one to act on. Pull a trace id from the
+   logs and look at the raw PID-7 in the dead-letter folder or the sender's
+   output.
+
+**Likely causes.** A sending system that has started including a time zone, a
+precision the mapper does not handle, or a genuinely malformed date.
+
+**Mitigation.** None is needed for safety: the record is written without the
+field. Raise it with the sending trust, and add the format to
+`hl7_to_fhir_date` if it is a legitimate one.
+
+## 7. `InvalidNhsNumbers`
+
+Anchor: `#invalid-nhs-number`
+
+**What it means.** An identifier arrived in PID-3 with an `NHS` assigning
+authority and failed its Modulus 11 check digit. The NHS Data Dictionary says
+that algorithm is mandatory, so a failure means the value is not an NHS
+number.
+
+The pipeline keeps the identifier on the resource, because the sender sent it,
+but will not use it to look the patient up in PDS or to match an existing
+record. Those writes become unconditional creates and show up in
+`patient_write_total{identity="none"}`.
+
+**Triage.**
+
+1. One or two is a typo at the sending end.
+2. A steady rate from one sender is a different numbering scheme in the NHS
+   Number field. A Scottish CHI number is ten digits and will fail this check.
+3. `sum by (service) (rate(nhs_number_invalid_total[1h]))` and cross-reference
+   MSH-3 and MSH-4 in the logs to find which sender.
+
+**Mitigation.** Do not switch the validation off. If a sender is supplying CHI
+numbers, those need their own identifier system rather than being asserted as
+NHS numbers.
+
+## 8. `PatientWritesWithoutIdentity`
+
+Anchor: `#patient-identity`
+
+**What it means.** More than a tenth of patient writes had no NHS number to
+match on, so they were written as unconditional creates. A resend of any of
+those produces a duplicate record.
+
+**Why it is here.** This is the alert for a failure with no error. Every one of
+those writes returned 200.
+
+**Triage.**
+
+1. Split by cause: `rate(nhs_number_invalid_total[30m])` tells you how much of
+   it is failed check digits rather than absent numbers.
+2. If the numbers are absent rather than invalid, the sender is not populating
+   PID-3 with an NHS identifier at all.
+
+**Known limitation.** This counts writes that had no identity to key on. It
+does not detect the opposite problem, where the same person arrives under two
+different NHS numbers and produces two records, which is what happens when a
+patient moves between the Scottish and English NHS. Catching that needs a
+matching step rather than a metric, and it is not built yet.
+
 ## Generic playbook
 
 For any alert that isn't listed above:
