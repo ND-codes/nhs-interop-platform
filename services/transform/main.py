@@ -209,9 +209,11 @@ async def _enrich_via_pds(
     if not nhs_number:
         return patient
 
-    @pds_breaker
+    # pybreaker 1.2.0 cannot decorate a coroutine function: the decorator sees
+    # the coroutine object returned, counts a success, and the failure raises
+    # later on await, outside the breaker. calling() wraps the awaited block.
     async def _call() -> dict | None:
-        with PDS_LATENCY.labels(outcome="success").time():
+        with pds_breaker.calling(), PDS_LATENCY.labels(outcome="success").time():
             resp = await http.get(
                 f"{PDS_CLIENT_URL}/{nhs_number}",
                 headers={"X-Trace-Id": trace_id},

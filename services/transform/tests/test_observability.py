@@ -5,6 +5,7 @@ the message returned 200, the Bundle validated, and no counter moved.
 """
 from __future__ import annotations
 
+import asyncio
 import os
 import tempfile
 
@@ -155,3 +156,33 @@ def test_a_valid_nhs_number_is_recorded_as_the_identity(monkeypatch) -> None:
     assert sample(
         REGISTRY.get_sample_value("patient_write_total", labels)
     ) == before + 1
+
+
+def test_breaker_opens_when_the_real_pds_call_fails(monkeypatch) -> None:
+    """The test above drives the breaker with a sync function. The real PDS
+    call is async, and pybreaker's decorator on a coroutine function counts
+    every call a success, so the breaker never opened in the running stack."""
+    monkeypatch.setattr(main, "PDS_ENABLED", True)
+    main.pds_breaker.close()
+    patient = {
+        "resourceType": "Patient",
+        "identifier": [
+            {"system": "https://fhir.nhs.uk/Id/nhs-number", "value": "9000000009"}
+        ],
+    }
+
+    async def burst() -> None:
+        async with httpx.AsyncClient() as http:
+            with respx.mock:
+                respx.get(url__startswith=main.PDS_CLIENT_URL).mock(
+                    side_effect=httpx.ConnectError("PDS down")
+                )
+                for _ in range(main.pds_breaker.fail_max):
+                    await main._enrich_via_pds(http, patient, "trace")
+
+    asyncio.run(burst())
+    try:
+        assert main.pds_breaker.current_state == pybreaker.STATE_OPEN
+        assert REGISTRY.get_sample_value("pybreaker_state", {"name": "pds"}) == 1
+    finally:
+        main.pds_breaker.close()
