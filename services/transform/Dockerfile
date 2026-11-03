@@ -10,6 +10,10 @@ RUN groupadd --system app && useradd --system --gid app --uid 10001 app
 WORKDIR /app
 COPY --from=builder /install /usr/local
 COPY --chown=app:app main.py mapper.py ./
+# The dlq volume mounts here. Docker copies this directory's owner into a new
+# named volume; without it the volume is root's and every dead-letter write
+# fails with PermissionError, losing the message.
+RUN mkdir -p /tmp/dlq && chown app:app /tmp/dlq
 USER 10001
 
 HEALTHCHECK --interval=15s --timeout=3s --retries=3 \
