@@ -9,7 +9,7 @@ The articles are published on dev.to. The drafts live in this folder, and each a
 | 1 | [Why NHS trusts need an HL7 v2 to FHIR layer, and how this one is built](https://dev.to/ndcodes/part-1-why-nhs-trusts-need-an-hl7-v2-to-fhir-layer-and-how-this-one-is-built-kkm) | 14 Oct 2026 | `part-1` | Published |
 | 2 | [From Docker Compose up to Terraform on AWS, and the CI that checks it](https://dev.to/ndcodes/part-2-from-docker-compose-up-to-terraform-on-aws-and-the-ci-that-checks-it-1a4i) | 21 Oct 2026 | `part-2` | Published |
 | 3 | [Nine ways an HL7 v2 to FHIR mapping goes quietly wrong](https://dev.to/ndcodes/nine-ways-an-hl7-v2-to-fhir-mapping-goes-quietly-wrong-2gd4) | 28 Oct 2026 | `part-3` | Published |
-| 4 | Observability from day one | 4 Nov 2026 | `part-4` | Planned |
+| 4 | [The Alert That Could Never Fire](https://dev.to/ndcodes/part-4-the-alert-that-could-never-fire-3434) | 4 Nov 2026 | `part-4` | Published |
 | 5 | Security and compliance in a regulated environment | 11 Nov 2026 | `part-5` | Planned |
 | 6 | The 10-minute walkthrough, and the questions interviewers ask | 18 Nov 2026 | `part-6` | Planned |
 | 7 | Where AI fits, and where it doesn't | 25 Nov 2026 | `part-7` | Planned |
