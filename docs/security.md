@@ -133,7 +133,7 @@ table in a repository.
 | 1, personal confidential data | This document, and `services/pds-client/tests/test_privacy.py` as the enforcement |
 | 4, managing data access | `k8s/helm/*/templates/networkpolicy.yaml`. IRSA in `infra/terraform/eks.tf` is written, not applied |
 | 5, process reviews | `docs/runbook.md`, `docs/lessons-learnt.md` |
-| 6, responding to incidents | `docs/runbook.md`, nine alerts each with a named triage section. The previous version of this row cited `docs/runbook.md#3-database-connection-pool-exhausted`, which has never existed |
+| 6, responding to incidents | `docs/runbook.md`, nine alerts each with a named triage section. Partly: the alerts fire but notify no one, see "Claimed, not built". The previous version of this row cited `docs/runbook.md#3-database-connection-pool-exhausted`, which has never existed |
 | 7, continuity planning | Partly. RDS Multi-AZ and PITR are written in Terraform. Argo CD can re-sync. No RPO or RTO target has been measured, and the earlier claim of one was not based on a test |
 | 8, unsupported systems | Pinned requirements, Trivy, Syft SBOM. Automated dependency update PRs were claimed; there is no Dependabot configuration |
 | 9, IT protection | NetworkPolicy, container hardening, KMS CMK in Terraform. WAF was claimed, is not in the configuration, and the evidence given for it was a diagram |
@@ -149,6 +149,15 @@ listed here so the control tables above contain only things that exist.
   that exist are that the subnets are tagged for an internal load balancer and
   that NetworkPolicy restricts pod-to-pod traffic. Neither is authentication.
   Tracked as a roadmap issue.
+- Alert delivery. Earlier versions of this document did not claim it, but
+  `docs/architecture.md` says "Alertmanager routes pages" and the runbook's
+  prerequisites list an alerts Slack and PagerDuty queue. Neither exists.
+  `observability/alertmanager/alertmanager.yml` routes to email through
+  `mailhog`, but nothing loads it: Docker Compose runs no Alertmanager or
+  mailhog service, `prometheus.yml` has no `alerting` block, and no Kubernetes
+  manifest deploys one. The alert rules evaluate and show Firing in the
+  Prometheus UI, and that is as far as they go. Raised by Nan, a reader of
+  Part 4.
 - mTLS between services, through a service mesh.
 - Federated identity through NHS Care Identity Service 2.
 - A local pre-commit hook for Gitleaks. Gitleaks runs in CI; there is no
