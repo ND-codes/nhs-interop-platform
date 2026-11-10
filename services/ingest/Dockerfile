@@ -1,5 +1,12 @@
 FROM python:3.12-slim AS base
 
+# Pull Debian security fixes published after the upstream image was built.
+# CI fails on any fixed HIGH or CRITICAL, so without this a CVE Debian has
+# already patched blocks every pull request until python:3.12-slim is rebuilt.
+RUN apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/*
+
 # --- builder layer -----------------------------------------------------------
 FROM base AS builder
 WORKDIR /app
