@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -33,6 +34,11 @@ from mapper import (
 FHIR_BASE_URL = os.getenv("FHIR_BASE_URL", "http://hapi-fhir:8080/fhir")
 PDS_CLIENT_URL = os.getenv("PDS_CLIENT_URL", "http://pds-client:8002/pds")
 DLQ_PATH = Path(os.getenv("DLQ_PATH", "/tmp/dlq"))
+# A dead-lettered message is the complete raw HL7 message, so the queue holds
+# every PID field including the ones the mapper deliberately drops. That makes
+# it the most sensitive store in the local stack, and it had no expiry at all.
+# 72 hours is long enough to replay a weekend outage on the Monday.
+DLQ_RETENTION_HOURS = int(os.getenv("DLQ_RETENTION_HOURS", "72"))
 PDS_ENABLED = os.getenv("PDS_ENABLED", "true").lower() == "true"
 SERVICE_NAME = "transform"
 VERSION = os.getenv("VERSION", "0.1.0")
@@ -51,6 +57,16 @@ pds_breaker = pybreaker.CircuitBreaker(fail_max=5, reset_timeout=30, name="pds")
 # Custom metrics. The Prometheus instrumentator handles request-level ones.
 DLQ_COUNTER = Counter(
     "hl7_dlq_total", "HL7 messages written to the dead-letter path", ["reason"]
+)
+DLQ_PRUNED = Counter(
+    "hl7_dlq_pruned_total",
+    "Dead-lettered messages deleted because they passed the retention window",
+)
+DLQ_OLDEST = Gauge(
+    "hl7_dlq_oldest_seconds",
+    "Age of the oldest message in the dead-letter path. A retention rule that "
+    "nothing measures is not a control, so this is what an auditor can be "
+    "shown and what an alert can watch.",
 )
 PDS_LATENCY = Histogram(
     "pds_lookup_seconds", "Latency of PDS enrichment calls", ["outcome"]
@@ -130,9 +146,17 @@ BREAKER_STATE.labels(name=pds_breaker.name).set(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.http = httpx.AsyncClient(timeout=10.0)
+    # Prune on startup as well as on write, so a restart clears anything that
+    # aged out while the service was down. _prune_dlq is defined below; the
+    # name resolves when this runs, not when the module is read.
+    _prune_dlq()
     logger.info(
         "transform service started",
-        extra={"fhir_base_url": FHIR_BASE_URL, "pds_enabled": PDS_ENABLED},
+        extra={
+            "fhir_base_url": FHIR_BASE_URL,
+            "pds_enabled": PDS_ENABLED,
+            "dlq_retention_hours": DLQ_RETENTION_HOURS,
+        },
     )
     yield
     await app.state.http.aclose()
@@ -187,6 +211,63 @@ def _record_observations(raw: str, bundle: dict, trace_id: str) -> None:
     PATIENT_WRITE.labels(identity=identity).inc()
 
 
+def _dlq_oldest_age() -> float:
+    """Age in seconds of the oldest message on disk, read at scrape time.
+
+    This is deliberately not a value set by _prune_dlq. The first version set
+    the gauge when pruning ran, and pruning deletes anything past the window,
+    so the gauge could never read more than 72 hours and then froze until the
+    next write or restart. The alert threshold is 80 hours, so the alert could
+    never fire in the one case it existed for: a stack that dead-letters
+    nothing and never restarts. Reading the directory on each scrape costs one
+    listing of a path that should hold a handful of files.
+    """
+    oldest_mtime: float | None = None
+    for path in DLQ_PATH.glob("*.hl7"):
+        try:
+            mtime = path.stat().st_mtime
+        except FileNotFoundError:
+            continue
+        if oldest_mtime is None or mtime < oldest_mtime:
+            oldest_mtime = mtime
+    return 0.0 if oldest_mtime is None else time.time() - oldest_mtime
+
+
+DLQ_OLDEST.set_function(_dlq_oldest_age)
+
+
+def _prune_dlq() -> int:
+    """Delete dead-lettered messages past the retention window.
+
+    Known limit, and it is the reason the production control is an S3
+    lifecycle rule rather than this function: pruning runs on write and on
+    startup, so a stack that dead-letters nothing and never restarts keeps its
+    oldest message past the window. `hl7_dlq_oldest_seconds` is read at
+    scrape time, so it keeps rising in that case and DLQMessagesPastRetention
+    fires.
+    """
+    cutoff = time.time() - (DLQ_RETENTION_HOURS * 3600)
+    pruned = 0
+    for path in DLQ_PATH.glob("*.hl7"):
+        try:
+            mtime = path.stat().st_mtime
+        except FileNotFoundError:
+            continue
+        if mtime < cutoff:
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                continue
+            pruned += 1
+            DLQ_PRUNED.inc()
+    if pruned:
+        logger.info(
+            "pruned dead-lettered messages past retention",
+            extra={"pruned": pruned, "retention_hours": DLQ_RETENTION_HOURS},
+        )
+    return pruned
+
+
 def _dlq(raw: str, trace_id: str, reason: str) -> None:
     path = DLQ_PATH / f"{trace_id}.hl7"
     path.write_text(raw, encoding="utf-8")
@@ -195,6 +276,7 @@ def _dlq(raw: str, trace_id: str, reason: str) -> None:
         "message dead-lettered",
         extra={"trace_id": trace_id, "reason": reason, "path": str(path)},
     )
+    _prune_dlq()
 
 
 async def _enrich_via_pds(
@@ -226,9 +308,19 @@ async def _enrich_via_pds(
         pds_patient = await _call()
     except (pybreaker.CircuitBreakerError, httpx.HTTPError) as exc:
         PDS_LATENCY.labels(outcome="failure").observe(0)
+        # Never str(exc). An HTTPStatusError's message includes the request
+        # URL, which is PDS_CLIENT_URL/<nhs_number>, so logging the message
+        # logs the patient identifier on every failed lookup.
+        status = (
+            exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
+        )
         logger.warning(
-            "PDS enrichment failed — continuing with local demographics",
-            extra={"trace_id": trace_id, "error": str(exc)},
+            "PDS enrichment failed, continuing with local demographics",
+            extra={
+                "trace_id": trace_id,
+                "error_type": type(exc).__name__,
+                "upstream_status": status,
+            },
         )
         return patient
 

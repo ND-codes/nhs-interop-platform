@@ -16,7 +16,7 @@ groups:
           team: interop
         annotations:
           summary: "transform p95 latency > 1s for 10 minutes"
-          runbook: "docs/runbook.md#transform-latency"
+          runbook: "docs/runbook.md#1-transformlatencyhigh"
 
       # --- Traffic (low / dropped) -------------------------------------------
       - alert: IngestNoTraffic
@@ -27,7 +27,7 @@ groups:
           team: interop
         annotations:
           summary: "ingest has not received an HL7 message for 15 minutes"
-          runbook: "docs/runbook.md#ingest-no-traffic"
+          runbook: "docs/runbook.md#5-ingestnotraffic"
 
       # --- Errors ------------------------------------------------------------
       - alert: TransformErrorRateHigh
@@ -41,7 +41,7 @@ groups:
           team: interop
         annotations:
           summary: "transform 5xx rate > 2% for 5 minutes"
-          runbook: "docs/runbook.md#transform-errors"
+          runbook: "docs/runbook.md#4-transformerrorratehigh"
 
       - alert: DLQRateHigh
         expr: sum(rate(hl7_dlq_total[5m])) > 0.1
@@ -51,7 +51,7 @@ groups:
           team: interop
         annotations:
           summary: "HL7 messages are being dead-lettered at > 6/min"
-          runbook: "docs/runbook.md#dlq"
+          runbook: "docs/runbook.md#3-dlqratehigh"
 
       # --- Saturation --------------------------------------------------------
       # transform exports pybreaker_state from a CircuitBreakerListener. Until
@@ -65,7 +65,7 @@ groups:
           team: interop
         annotations:
           summary: "PDS circuit breaker is open, so the pipeline is running on message demographics only"
-          runbook: "docs/runbook.md#pds-circuit"
+          runbook: "docs/runbook.md#2-pdscircuitopen"
 
       # --- Silent data loss ----------------------------------------------------
       # A field that does not reach FHIR used to leave no trace at all: the
@@ -78,7 +78,7 @@ groups:
           team: interop
         annotations:
           summary: "Dates are failing to parse at more than 3/min, so birth dates are being lost"
-          runbook: "docs/runbook.md#fields-dropped"
+          runbook: "docs/runbook.md#6-fieldsdroppedratehigh"
 
       # An identifier arriving as an NHS number that fails its Modulus 11 check
       # digit. One is a typo. A steady rate is a sending system with a different
@@ -91,7 +91,7 @@ groups:
           team: interop
         annotations:
           summary: "Identifiers are arriving as NHS numbers that fail their check digit"
-          runbook: "docs/runbook.md#invalid-nhs-number"
+          runbook: "docs/runbook.md#7-invalidnhsnumbers"
 
       # Patients written with no NHS number to key on get an unconditional
       # create, so a resend makes a duplicate. A rising share means matching is
@@ -107,4 +107,20 @@ groups:
           team: interop
         annotations:
           summary: "More than 10% of patient writes have no NHS number to match on"
-          runbook: "docs/runbook.md#patient-identity"
+          runbook: "docs/runbook.md#8-patientwriteswithoutidentity"
+
+      # The dead-letter path holds complete raw HL7 messages, so it is the most
+      # sensitive store in the stack. Pruning runs on write and on startup,
+      # which means a stack that dead-letters nothing and never restarts keeps
+      # its oldest message indefinitely. This is the alert that makes that
+      # visible rather than silent. 80 hours against a 72 hour retention leaves
+      # room for a prune that has not been triggered yet.
+      - alert: DLQMessagesPastRetention
+        expr: hl7_dlq_oldest_seconds > 288000
+        for: 15m
+        labels:
+          severity: warning
+          team: interop
+        annotations:
+          summary: "A dead-lettered message has outlived the retention window"
+          runbook: "docs/runbook.md#9-dlqmessagespastretention"

@@ -12,6 +12,8 @@ One entry per alert. Each entry has: what fires, what it means, what to check, w
 
 ## 1. `TransformLatencyHigh`
 
+Link: `docs/runbook.md#1-transformlatencyhigh`
+
 **What fires.** p95 latency on the transform service >1s for 10 minutes.
 
 **What it usually means.** Either PDS is slow (most common), the transform pod is CPU-saturated, or the FHIR server is backpressuring.
@@ -23,13 +25,22 @@ One entry per alert. Each entry has: what fires, what it means, what to check, w
 
 **Mitigation.**
 - Temporary scale: `kubectl -n interop scale deploy transform --replicas=<n>`. HPA will fight you — suspend it first with `kubectl autoscale ... --min=<n>`.
-- If FHIR writes are failing, inspect the DLQ bucket — messages are queued there and will replay once the write path recovers.
+- If FHIR writes are failing, inspect the dead-letter path, not a bucket. It
+  is a local path in every configuration that runs: a named volume at
+  `/tmp/dlq` under Docker Compose, and an `emptyDir` at `/tmp` in Kubernetes.
+  The S3 bucket in `infra/terraform/s3.tf` has the right retention and
+  encryption controls and nothing writes to it. An `emptyDir` does not survive
+  the pod, so a restart or a reschedule during the outage loses the messages,
+  and nothing replays automatically: replay is a manual resend from the path.
+  Messages older than `DLQ_RETENTION_HOURS`, 72 by default, are pruned.
 
 **Post-incident.** Add the query pattern to the load model. If HPA cap was hit, raise it. If RDS CPU was the cause, schedule an instance-class bump.
 
 ---
 
 ## 2. `PDSCircuitOpen`
+
+Link: `docs/runbook.md#2-pdscircuitopen`
 
 **What fires.** The PDS circuit breaker has been open for 2 minutes.
 
@@ -48,24 +59,38 @@ One entry per alert. Each entry has: what fires, what it means, what to check, w
 
 ## 3. `DLQRateHigh`
 
+Link: `docs/runbook.md#3-dlqratehigh`
+
 **What fires.** More than 6 HL7 messages per minute are being dead-lettered.
 
 **What it usually means.** A new upstream has started sending malformed messages, or we have a mapping bug that choked on a field pattern we haven't seen before.
 
 **Immediate actions.**
-1. `aws s3 ls s3://nhs-interop-<env>-dlq/ --recursive | tail -20` — fetch a couple of recent messages.
+1. List the most recent dead-lettered messages. They are files in `/tmp/dlq` inside the transform container. Nothing writes to the S3 DLQ bucket, so do not look there.
+   - Docker Compose: `docker compose exec transform ls -lt /tmp/dlq | head -20`
+   - Kubernetes: `kubectl -n interop exec deploy/transform -- ls -lt /tmp/dlq | head -20`
+
+   Each file is named `<trace_id>.hl7`, so the file name is the trace id for the next step.
 2. Inspect the transform logs for the trace id: `kubectl -n interop logs deploy/transform --since=15m | grep <trace_id>`.
 3. Classify: is it an upstream bug (wrong field order, unknown segment) or our bug (unhandled edge case in the mapper)?
 
+**Before you change anything in Kubernetes, copy the messages out.** `/tmp` is an `emptyDir`, so the dead-letter path does not survive the pod. A restart, a reschedule or a redeploy deletes every message in it. Copy them first:
+
+`kubectl -n interop cp <transform-pod>:/tmp/dlq ./dlq-<date>`
+
+The copy is complete raw HL7, every PID field included. Keep it on an encrypted disk and delete it once replayed. Messages are also pruned after `DLQ_RETENTION_HOURS` (72 by default), so copy them out before then if the fix will take longer. In Docker Compose the path is a named volume and survives `docker compose restart`, but not `docker compose down -v`.
+
 **Mitigation.**
-- Upstream bug: raise a ticket with the sending trust; the DLQ preserves the message for replay once fixed.
-- Our bug: write a failing unit test against the fixture, patch the mapper, redeploy. Replay the DLQ batch.
+- Upstream bug: raise a ticket with the sending trust. Keep the copied messages for replay once it is fixed, within the retention window.
+- Our bug: copy the messages out, write a failing unit test against the fixture, patch the mapper, redeploy, then replay from the copy.
 
 **Post-incident.** Every mapping bug gets a regression test. The fixture goes into `tests/fixtures/hl7/`.
 
 ---
 
 ## 4. `TransformErrorRateHigh`
+
+Link: `docs/runbook.md#4-transformerrorratehigh`
 
 **What fires.** Transform 5xx rate >2% for 5 minutes.
 
@@ -83,6 +108,8 @@ One entry per alert. Each entry has: what fires, what it means, what to check, w
 
 ## 5. `IngestNoTraffic`
 
+Link: `docs/runbook.md#5-ingestnotraffic`
+
 **What fires.** Zero HL7 messages received for 15 minutes.
 
 **What it usually means.** Either the upstream trust integration engine is down (most common — not our problem to fix, but it's our problem to notice), the ALB has a listener misconfiguration, or our ingress NetworkPolicy is too tight after a recent change.
@@ -98,7 +125,7 @@ One entry per alert. Each entry has: what fires, what it means, what to check, w
 
 ## 6. `FieldsDroppedRateHigh`
 
-Anchor: `#fields-dropped`
+Link: `docs/runbook.md#6-fieldsdroppedratehigh`
 
 **What it means.** Fields present in the incoming message are not reaching the
 FHIR resource. The rule watches unparseable dates specifically, because a lost
@@ -127,7 +154,7 @@ field. Raise it with the sending trust, and add the format to
 
 ## 7. `InvalidNhsNumbers`
 
-Anchor: `#invalid-nhs-number`
+Link: `docs/runbook.md#7-invalidnhsnumbers`
 
 **What it means.** An identifier arrived in PID-3 with an `NHS` assigning
 authority and failed its Modulus 11 check digit. The NHS Data Dictionary says
@@ -153,7 +180,7 @@ NHS numbers.
 
 ## 8. `PatientWritesWithoutIdentity`
 
-Anchor: `#patient-identity`
+Link: `docs/runbook.md#8-patientwriteswithoutidentity`
 
 **What it means.** More than a tenth of patient writes had no NHS number to
 match on, so they were written as unconditional creates. A resend of any of
@@ -174,6 +201,57 @@ does not detect the opposite problem, where the same person arrives under two
 different NHS numbers and produces two records, which is what happens when a
 patient moves between the Scottish and English NHS. Catching that needs a
 matching step rather than a metric, and it is not built yet.
+
+## 9. `DLQMessagesPastRetention`
+
+Link: `docs/runbook.md#9-dlqmessagespastretention`
+
+**What it means.** A message in the dead-letter path is older than the
+retention window, which is 72 hours by default and set by `DLQ_RETENTION_HOURS`.
+
+**Why it is here.** A dead-lettered message is the complete raw HL7 message,
+every PID field, including the ones the mapper deliberately drops before it
+builds the FHIR Bundle. That makes the dead-letter path the most sensitive
+store in the stack, and until Part 5 it had no expiry at all while
+`docs/security.md` claimed a storage-limitation control. This alert is here
+because a retention rule that nothing measures is not a control, it is a
+sentence in a document.
+
+**Triage.**
+
+1. `hl7_dlq_oldest_seconds` gives the age of the oldest surviving message.
+2. If messages are old because nobody replayed them, replay them:
+   `make reconcile` first to see what is missing, then resend from the queue.
+3. If messages are old because pruning has not run, that is the known
+   limitation below rather than a fault.
+
+**Mitigation.** `docker compose restart transform` prunes on startup. In a
+deployed environment the equivalent is the S3 lifecycle rule, which does not
+depend on the service running at all.
+
+**Known limitation.** Pruning runs when a message is written and when the
+service starts. A stack that dead-letters nothing and never restarts keeps its
+oldest message past the window, and this alert is what tells you so. The fix
+is not a bigger prune, it is moving retention to the storage layer, where it
+runs whether or not the application does.
+
+## A note on these links
+
+GitHub generates a heading's anchor from its text, so the link for each
+section below is its number and name with the punctuation removed, for example
+`#2-pdscircuitopen`. Every `runbook:` annotation in
+`observability/prometheus/alerts.yml` points at one of them, and the alert rule
+tests assert the exact string.
+
+Until November 2026 those annotations pointed at short names such as
+`#pds-circuit`, which were never anchors in this file and had never resolved.
+An on-call engineer following an alert link landed at the top of the document.
+Three of the eight were added in Part 4 by copying the convention without
+checking that it worked.
+
+The trade-off in the current scheme is that renumbering a section changes its
+link. If sections are ever reordered, the annotations and the rule tests have
+to move with them, and the rule tests are what will catch it.
 
 ## Generic playbook
 
