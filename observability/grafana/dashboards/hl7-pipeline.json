@@ -18,7 +18,7 @@
   "timezone": "browser",
   "title": "HL7 Pipeline",
   "uid": "nhs-hl7-pipeline",
-  "version": 2,
+  "version": 3,
   "panels": [
     {
       "id": 1,
@@ -212,6 +212,23 @@
           "expr": "sum by (identity) (rate(patient_write_total[5m]))",
           "legendFormat": "{{identity}}",
           "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Oldest dead-lettered message (seconds). Retention is 72h = 259200s",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "targets": [
+        {
+          "expr": "hl7_dlq_oldest_seconds",
+          "legendFormat": "oldest message age"
         }
       ]
     }

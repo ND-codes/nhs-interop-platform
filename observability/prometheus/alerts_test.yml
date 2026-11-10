@@ -29,7 +29,7 @@ tests:
               name: pds
             exp_annotations:
               summary: "PDS circuit breaker is open, so the pipeline is running on message demographics only"
-              runbook: "docs/runbook.md#pds-circuit"
+              runbook: "docs/runbook.md#2-pdscircuitopen"
 
   # This is the state the repo was actually in: the rule was correct, and no
   # service published pybreaker_state, so there was nothing for it to read.
@@ -80,7 +80,7 @@ tests:
               team: interop
             exp_annotations:
               summary: "Dates are failing to parse at more than 3/min, so birth dates are being lost"
-              runbook: "docs/runbook.md#fields-dropped"
+              runbook: "docs/runbook.md#6-fieldsdroppedratehigh"
 
   - interval: 1m
     name: an unmapped address does not trip the date alert
@@ -107,7 +107,7 @@ tests:
               team: interop
             exp_annotations:
               summary: "Identifiers are arriving as NHS numbers that fail their check digit"
-              runbook: "docs/runbook.md#invalid-nhs-number"
+              runbook: "docs/runbook.md#7-invalidnhsnumbers"
 
   - interval: 1m
     name: patient writes with no identity alert once they pass a tenth
@@ -125,7 +125,7 @@ tests:
               team: interop
             exp_annotations:
               summary: "More than 10% of patient writes have no NHS number to match on"
-              runbook: "docs/runbook.md#patient-identity"
+              runbook: "docs/runbook.md#8-patientwriteswithoutidentity"
 
   - interval: 1m
     name: an all-matched stream does not alert
@@ -135,4 +135,40 @@ tests:
     alert_rule_test:
       - eval_time: 50m
         alertname: PatientWritesWithoutIdentity
+        exp_alerts: []
+
+  - interval: 1m
+    name: a message past the retention window alerts
+    input_series:
+      - series: "hl7_dlq_oldest_seconds"
+        values: "290000x30"
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: DLQMessagesPastRetention
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              team: interop
+            exp_annotations:
+              summary: "A dead-lettered message has outlived the retention window"
+              runbook: "docs/runbook.md#9-dlqmessagespastretention"
+
+  - interval: 1m
+    name: a queue inside the window is silent
+    input_series:
+      - series: "hl7_dlq_oldest_seconds"
+        values: "180000x30"
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: DLQMessagesPastRetention
+        exp_alerts: []
+
+  - interval: 1m
+    name: an empty queue reports zero and is silent
+    input_series:
+      - series: "hl7_dlq_oldest_seconds"
+        values: "0x30"
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: DLQMessagesPastRetention
         exp_alerts: []

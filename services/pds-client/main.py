@@ -11,18 +11,27 @@ Thin, resilient wrapper around the NHS Digital PDS FHIR Sandbox API. It:
 
 When PDS is configured as the stub (the default for the local demo), the
 service returns a deterministic canned record so the pipeline works offline.
+
+Logging rule for this service: the NHS number is a direct patient identifier
+and never appears in a log record, a metric label, or an outbound correlation
+header. Use the trace id, which transform already sends as X-Trace-Id and
+which identifies the message rather than the patient. Note that
+python-json-logger serialises everything passed in `extra`, whether or not the
+format string names it, so an identifier added to `extra` reaches stdout even
+when the log line looks clean.
 """
 from __future__ import annotations
 
 import logging
 import os
+import uuid
 from contextlib import asynccontextmanager
 from typing import Any
 
 import httpx
 import pybreaker
 from cachetools import TTLCache
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from prometheus_fastapi_instrumentator import Instrumentator
 from pythonjsonlogger import jsonlogger
 
@@ -100,44 +109,82 @@ def _is_valid_nhs_number(nhs_number: str) -> bool:
     return nhs_number.isdigit() and len(nhs_number) == 10
 
 
-@breaker
-async def _fetch_from_sandbox(http: httpx.AsyncClient, nhs_number: str) -> dict:
+async def _fetch_from_sandbox(
+    http: httpx.AsyncClient, nhs_number: str, trace_id: str
+) -> dict:
+    """The breaker is entered with `calling()` rather than applied as a
+    decorator. pybreaker 1.2.0 cannot decorate a coroutine function: the
+    decorator sees the coroutine object returned, counts a success, and the
+    failure raises later on await, outside the breaker. `call_async` is not
+    the alternative here, because it is implemented with tornado.gen and this
+    service runs on asyncio.
+
+    X-Request-ID carries the trace id, not the NHS number. A request id is
+    echoed in upstream error responses and recorded by every intermediary, so
+    putting a patient identifier in it leaks further than our own log store.
+    """
     url = f"{PDS_BASE_URL}/Patient/{nhs_number}"
-    resp = await http.get(url, headers={"X-Request-ID": nhs_number})
-    if resp.status_code == 404:
-        raise HTTPException(status_code=404, detail="patient not found in PDS")
-    resp.raise_for_status()
-    return resp.json()
+    with breaker.calling():
+        resp = await http.get(url, headers={"X-Request-ID": trace_id})
+        if resp.status_code == 404:
+            raise HTTPException(status_code=404, detail="patient not found in PDS")
+        resp.raise_for_status()
+        return resp.json()
 
 
 @app.get("/pds/{nhs_number}", tags=["pds"])
-async def lookup(nhs_number: str) -> dict:
+async def lookup(
+    nhs_number: str,
+    x_trace_id: str | None = Header(default=None),
+) -> dict:
+    """transform sends X-Trace-Id on every call. Before this change the header
+    was sent and dropped, which left the NHS number as the only identifier
+    available to log, which is how it ended up in four log lines."""
+    trace_id = x_trace_id or str(uuid.uuid4())
+
     if not _is_valid_nhs_number(nhs_number):
         raise HTTPException(status_code=400, detail="invalid NHS number format")
 
     if nhs_number in cache:
-        logger.info("PDS cache hit", extra={"nhs_number": nhs_number})
+        logger.info("PDS cache hit", extra={"trace_id": trace_id})
         return cache[nhs_number]
 
     if PDS_STUB:
-        logger.info("PDS stub mode — returning canned record", extra={"nhs_number": nhs_number})
+        logger.info(
+            "PDS stub mode, returning canned record", extra={"trace_id": trace_id}
+        )
         cache[nhs_number] = STUB_RECORD
         return STUB_RECORD
 
     try:
-        record = await _fetch_from_sandbox(app.state.http, nhs_number)
+        record = await _fetch_from_sandbox(app.state.http, nhs_number, trace_id)
     except pybreaker.CircuitBreakerError:
         logger.warning(
-            "PDS circuit open — refusing call",
-            extra={"nhs_number": nhs_number},
+            "PDS circuit open, refusing call",
+            extra={"trace_id": trace_id},
         )
         raise HTTPException(status_code=503, detail="PDS circuit breaker open")
     except httpx.HTTPError as exc:
+        # Never str(exc). httpx builds the message of an HTTPStatusError from
+        # the request URL, and the URL ends in /Patient/<nhs_number>, so the
+        # message carries the identifier. The type and status code say
+        # everything triage needs; the trace id finds the request.
+        status = (
+            exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
+        )
         logger.error(
             "PDS upstream error",
-            extra={"nhs_number": nhs_number, "error": str(exc)},
+            extra={
+                "trace_id": trace_id,
+                "error_type": type(exc).__name__,
+                "upstream_status": status,
+            },
         )
-        raise HTTPException(status_code=502, detail=f"PDS upstream error: {exc}") from exc
+        raise HTTPException(
+            status_code=502,
+            detail=f"PDS upstream error: {type(exc).__name__}"
+            + (f" {status}" if status else ""),
+        ) from exc
 
     cache[nhs_number] = record
     return record

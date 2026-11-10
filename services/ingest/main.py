@@ -19,6 +19,11 @@ from pydantic import BaseModel, Field
 from pythonjsonlogger import jsonlogger
 
 TRANSFORM_URL = os.getenv("TRANSFORM_URL", "http://transform:8001/transform")
+# The limit is deliberately generous rather than tight; the point is that
+# there is one at all. The largest fixture in tests/fixtures is 273 bytes, and
+# a real ORU carrying many OBX segments can run to tens of kilobytes, so
+# 256 KiB leaves room without allowing an unbounded read.
+MAX_BODY_BYTES = int(os.getenv("MAX_BODY_BYTES", str(256 * 1024)))
 SERVICE_NAME = "ingest"
 VERSION = os.getenv("VERSION", "0.1.0")
 
@@ -87,7 +92,39 @@ async def readyz(request: Request) -> dict[str, str]:
 
 @app.post("/hl7", response_model=IngestResponse, tags=["hl7"])
 async def ingest_hl7(request: Request) -> IngestResponse:
-    raw = (await request.body()).decode("utf-8", errors="replace")
+    """The body is read as raw bytes rather than through a Pydantic model,
+    because an HL7 v2 message is not JSON. That is defensible, but it meant
+    the one HTTP boundary that accepts arbitrary input had no size limit at
+    all, so this reads the stream in chunks and stops at the limit instead of
+    buffering whatever is sent.
+
+    Content-Length is checked first because it is cheap, and then the stream
+    is counted anyway, because Content-Length is a claim made by the client
+    and a chunked request does not have to send one.
+    """
+    declared = request.headers.get("content-length")
+    if declared is not None and declared.isdigit() and int(declared) > MAX_BODY_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"message larger than the {MAX_BODY_BYTES} byte limit",
+        )
+
+    chunks: list[bytes] = []
+    received = 0
+    async for chunk in request.stream():
+        received += len(chunk)
+        if received > MAX_BODY_BYTES:
+            logger.warning(
+                "rejected an oversized message",
+                extra={"limit_bytes": MAX_BODY_BYTES},
+            )
+            raise HTTPException(
+                status_code=413,
+                detail=f"message larger than the {MAX_BODY_BYTES} byte limit",
+            )
+        chunks.append(chunk)
+
+    raw = b"".join(chunks).decode("utf-8", errors="replace")
     if not raw.strip():
         raise HTTPException(status_code=400, detail="empty body")
 
