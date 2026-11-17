@@ -1,115 +1,169 @@
-# Quickstart — from zero to a running demo in 5 minutes
+# The tour: from a clone to a FHIR Patient, and an alert that reaches someone
 
-## Prerequisites
+Every command here is run by `make walkthrough`, which fails on the first step
+that does not produce what this document claims. If the tour and the repository
+drift apart, that target is what notices.
 
-- Docker Desktop 24+ running (or equivalent container runtime)
-- `make`, `curl`, `git` on your PATH
-- 4 GB RAM free for the stack (HAPI FHIR + Postgres are the hungry ones)
+Times below are from the run described at the end. Your first run will be
+slower, because it pulls images.
 
-Optional for the cloud bits: AWS CLI + Terraform 1.6+, `kubectl`, `helm`.
+## What you need
 
-## Step 1 — Get the code onto your machine
+- Docker Desktop 24 or later, running, with about 4 GB free. HAPI FHIR and
+  Postgres are the hungry ones.
+- `make`, `curl`, `git` and `python3` on your PATH.
+
+That is all. Nothing reaches the internet except the image pulls: `PDS_STUB`
+defaults to true, so the PDS lookup returns a canned record and the NHS Spine
+sandbox is never called.
+
+The cloud section at the end also wants Terraform 1.6+, `kubectl` and `helm`,
+and an AWS account. Nothing in this repository has ever been applied to one.
+
+## 1. Clone and configure
 
 ```bash
-# If you've cloned from GitHub:
-git clone https://github.com/<you>/nhs-interop-platform.git
+git clone https://github.com/ND-codes/nhs-interop-platform.git
 cd nhs-interop-platform
-
-# Or if you're copying this folder out of the workspace, just cd into it:
-cd "nhs-interop-platform"
-```
-
-## Step 2 — Create the local env file
-
-```bash
 cp .env.example .env.local
-# The defaults in .env.example are fine; PDS_STUB=true keeps everything offline.
 ```
 
-## Step 3 — Build and start the stack
+The defaults in `.env.example` are the demo settings and need no editing.
+`.env.local` is git-ignored.
+
+## 2. Start the stack
 
 ```bash
 make demo
 ```
 
-This will:
-1. `docker compose build` all three services.
-2. Start ingest, transform, pds-client, HAPI FHIR, Postgres, Prometheus, Grafana.
-3. Wait for HAPI FHIR's `/fhir/metadata` to respond (about 30-45 seconds on first boot).
-4. Print every URL you need.
+That builds the three services and starts nine containers: ingest, transform,
+pds-client, HAPI FHIR, Postgres, Prometheus, Grafana, Alertmanager and Mailpit.
+It waits for HAPI FHIR's `/fhir/metadata` to answer, which is 30 to 45 seconds
+on a warm machine and longer on the first run, then prints every URL.
 
-## Step 4 — Send a message and see it land in FHIR
+## 3. Run the tour
 
 ```bash
-./scripts/send-adt.sh
+make walkthrough
 ```
 
-You should see:
-- A `200 OK` from ingest with a trace id and `forwarded: true`.
-- A FHIR Bundle response with the persisted Patient, Encounter and MessageHeader ids.
-- Open <http://localhost:8080/fhir/Patient?identifier=https://fhir.nhs.uk/Id/nhs-number|9000000009> to browse the Patient.
+Eight checks. It sends an ADT message and waits for the Patient to appear in
+FHIR, sends a lab result and waits for the Observations, confirms Prometheus is
+scraping every service, and confirms that Prometheus has actually discovered an
+Alertmanager to send to. The last one is there because for two months it would
+have failed.
 
-## Step 5 — Send a lab result (ORU message with observations)
+If a step fails, it says which and stops. Everything after that point is
+unverified, so do not read a partial run as a partial success.
+
+## 4. Look at what it produced
 
 ```bash
-./scripts/send-oru.sh
-# Then browse:
+# the Patient, keyed on the NHS number
+open "http://localhost:8080/fhir/Patient?identifier=https://fhir.nhs.uk/Id/nhs-number%7C9000000009"
+
+# the lab results
 open http://localhost:8080/fhir/Observation
 ```
 
-## Step 6 — Look at the dashboards
+- Grafana: <http://localhost:3000>, admin / admin. The HL7 Pipeline dashboard
+  is provisioned, so it is already there under Dashboards.
+- Prometheus: <http://localhost:9090>, and <http://localhost:9090/alerts> for
+  the rules.
+- Swagger for each service: <http://localhost:8000/docs>,
+  <http://localhost:8001/docs>, <http://localhost:8002/docs>.
 
-- Grafana: <http://localhost:3000> (admin / admin). Dashboard → NHS Interop → HL7 Pipeline.
-- Prometheus: <http://localhost:9090>. Try the query `rate(http_requests_total[1m])`.
-- Ingest Swagger: <http://localhost:8000/docs>
-- Transform Swagger: <http://localhost:8001/docs>
-- PDS client Swagger: <http://localhost:8002/docs>
+## 5. Break it on purpose
 
-## Step 7 — Run the unit tests
-
-```bash
-make test              # runs pytest inside a throwaway container for each service
-```
-
-## Step 8 — Run the end-to-end integration test (stack must be up)
+This is the part worth your time, and the part a walkthrough usually skips.
 
 ```bash
-make integration
+make break-pds
 ```
 
-## Step 9 — Tear down
+That stops `pds-client` and pushes eight messages through, two seconds apart,
+printing the circuit breaker gauge after each one. The breaker opens. Then:
+
+- <http://localhost:9090/alerts> shows `PDSCircuitOpen` go Pending and then
+  Firing, about two minutes in.
+- <http://localhost:8025> is the inbox the notification arrives at. This is
+  Mailpit, a disposable SMTP sink that holds mail in memory and forwards it
+  nowhere.
+
+The messages keep flowing while the breaker is open. That is deliberate:
+enrichment fails open, so a PDS outage degrades data quality rather than
+dropping clinical messages. Watch the Patient still being written, with
+locally derived demographics only.
 
 ```bash
-make down              # stops containers but keeps the Postgres volume
-# or
-make clean             # stops everything AND deletes the volume (destroys data)
+make restore-pds
 ```
 
-## Troubleshooting
+For the dead-letter path instead:
 
-| Symptom                                               | Fix                                                                                 |
-|-------------------------------------------------------|-------------------------------------------------------------------------------------|
-| `make demo` hangs on "Waiting for HAPI FHIR"          | First boot takes up to 90 seconds — wait. If it still hangs, `docker compose logs hapi-fhir`. |
-| Ingest returns `forwarded: false`                     | Transform crashed — `docker compose logs transform`. Usually a Python import error. |
-| Patient not appearing in FHIR                         | Check the DLQ: `docker compose exec transform ls /tmp/dlq`. Any file there = a mapping error. Tail transform logs for the trace id. |
-| Grafana shows "No data"                               | Prometheus needs 30 seconds to scrape. Reload the dashboard. Check <http://localhost:9090/targets> — all three services should be `UP`. |
-| Ports already in use                                  | Change the left-hand side of `ports:` in `docker-compose.yml`, e.g. `"18080:8080"`. |
+```bash
+make break-fhir     # stops HAPI FHIR, so writes fail and messages dead-letter
+docker compose exec transform ls /tmp/dlq
+make restore-fhir
+```
 
-## When you're ready to go cloud
+Note that stopping `transform` would not demonstrate this, because `transform`
+is what writes the dead-letter path.
+
+## 6. Run the tests
+
+```bash
+make test           # unit tests for each service, in a throwaway container
+make lint           # ruff 0.6.9, the version CI pins
+make alerts         # promtool: the rules parse, and the rule unit tests pass
+make integration    # end to end, needs the stack up
+```
+
+`make test` and `make lint` run each service in a `python:3.12-slim` container,
+so they need Docker but not a local Python environment. `make integration`
+builds a throwaway virtualenv in `.venv-integration`.
+
+## 7. Stop
+
+```bash
+make down     # stops containers, keeps the Postgres volume
+make clean    # also deletes the volumes, destroying the data
+```
+
+## If something goes wrong
+
+| Symptom | What it is |
+|---|---|
+| `make demo` sits on "Waiting for HAPI FHIR" | First boot can take 90 seconds. If it is still going after that, `docker compose logs hapi-fhir`. |
+| Ingest returns `forwarded: false` | Transform is not answering. `docker compose logs transform`. |
+| The Patient never appears | Look in the dead-letter path: `docker compose exec transform ls /tmp/dlq`. A file there is a mapping failure, and the filename is the trace id to grep the logs for. |
+| Grafana shows No data | Prometheus scrapes every 10 seconds. Give it a moment, then check <http://localhost:9090/targets>. |
+| `make walkthrough` fails on the Alertmanager step | Prometheus has not discovered one. Check the `alerting` block in `observability/prometheus/prometheus.yml` and that the alertmanager container is running. |
+| A port is already in use | Change the left-hand side of the `ports:` mapping in `docker-compose.yml`. |
+| `cygpath: command not found` | You are on a version from before November 2026. `make test` and `make lint` only worked in Git Bash on Windows until then. |
+
+## The cloud part, which has never been run
 
 ```bash
 cd infra/terraform
-cp terraform.tfvars.example terraform.tfvars   # create and set project + environment
+cp terraform.tfvars.example terraform.tfvars
 terraform init
 terraform plan -out=tfplan
-terraform apply tfplan                         # ~15-20 minutes for EKS
 ```
 
-Then connect to the cluster:
+Stop and read the plan. `terraform apply` builds an EKS cluster and an RDS
+instance, which cost real money per hour, and takes 15 to 20 minutes.
 
-```bash
-aws eks update-kubeconfig --name nhs-interop-dev-eks --region eu-west-2
-kubectl apply -f k8s/argocd/app-of-apps.yaml
-# ArgoCD will pick up the app-of-apps and reconcile each service.
-```
+No part of this configuration has ever been applied. CI runs
+`terraform init -backend=false`, `validate` and `fmt -check` with a provider
+configured with fake credentials, and nothing else. Treat the AWS material as
+reviewed code rather than as a running system, and read `docs/security.md`
+before you believe any control described in it is operating.
 
+## How long the tour takes
+
+The full sequence, from `make demo` on a machine that already has the images
+through to the end of `make walkthrough`, is the number worth knowing, and it
+is the one claim in this document I have not measured on a second machine. If
+you time it, the figure in this section should be yours rather than mine.

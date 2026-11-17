@@ -1,9 +1,18 @@
-# Alertmanager config — routes to email for demo; in prod this goes to
-# PagerDuty with severity=critical mapping to a page and warning to a ticket.
+# Alertmanager config. Locally this routes to Mailpit, a disposable SMTP sink
+# with a web inbox, so `make break-pds` produces a notification you can open
+# and read rather than a rule that is Firing in a UI nobody is watching.
+#
+# In production severity=critical maps to a page and warning to a ticket. The
+# PagerDuty receiver below is a placeholder: it needs a real routing key, and
+# nothing here has ever been pointed at one.
+#
+# The smarthost previously named 'mailhog', which no configuration in this
+# repository ever started. Mailpit is the maintained successor and uses the
+# same ports, 1025 for SMTP and 8025 for the inbox.
 
 global:
   resolve_timeout: 5m
-  smtp_smarthost: 'mailhog:1025'
+  smtp_smarthost: 'mailpit:1025'
   smtp_from: 'alerts@nhs-interop.example'
   smtp_require_tls: false
 

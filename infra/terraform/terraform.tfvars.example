@@ -1,0 +1,25 @@
+# Copy to terraform.tfvars and edit. Every variable here has a default in
+# variables.tf, so this file is for overriding them, not for making the
+# configuration work.
+#
+# QUICKSTART.md told you to copy this file and it did not exist until
+# November 2026, which is the kind of thing you only notice when someone who
+# is not you follows your own instructions.
+#
+# Nothing here is a secret. AWS credentials come from your environment or your
+# profile, never from this file, and terraform.tfvars is git-ignored anyway.
+
+project     = "nhs-interop"
+environment = "dev" # dev | staging | prod, validated in variables.tf
+aws_region  = "eu-west-2" # London keeps patient data in the UK
+
+vpc_cidr = "10.40.0.0/16"
+
+eks_version             = "1.29"
+eks_node_instance_types = ["t3.large"]
+eks_node_min_size       = 2
+eks_node_desired_size   = 3
+eks_node_max_size       = 6
+
+db_instance_class    = "db.t4g.medium"
+db_allocated_storage = 50

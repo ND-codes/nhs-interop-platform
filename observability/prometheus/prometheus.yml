@@ -5,6 +5,15 @@ global:
 rule_files:
   - /etc/prometheus/alerts.yml
 
+# Without this block Prometheus evaluates every rule, shows them as Firing in
+# its own UI, and notifies nobody. That was the state of this repository
+# through Parts 4 and 5: the alert was made fireable, the runbook entries were
+# written, and the last hop did not exist. Raised by a reader of Part 4.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
 scrape_configs:
   - job_name: ingest
     static_configs:
