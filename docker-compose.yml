@@ -115,6 +115,28 @@ services:
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.retention.time=6h
+    depends_on:
+      - alertmanager
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.1
+    container_name: alertmanager
+    ports: ["9093:9093"]
+    volumes:
+      - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+    depends_on:
+      - mailpit
+
+  # A disposable SMTP sink with a web inbox at http://localhost:8025. It holds
+  # messages in memory and never forwards them anywhere, which is what makes it
+  # safe to point a demo at. Nothing in this stack sends real mail.
+  mailpit:
+    image: axllent/mailpit:v1.32.0
+    container_name: mailpit
+    ports:
+      - "8025:8025"
 
   grafana:
     image: grafana/grafana:11.2.0
