@@ -11,7 +11,7 @@ The articles are published on dev.to. The drafts live in this folder, and each a
 | 3 | [Nine ways an HL7 v2 to FHIR mapping goes quietly wrong](https://dev.to/ndcodes/nine-ways-an-hl7-v2-to-fhir-mapping-goes-quietly-wrong-2gd4) | 28 Oct 2026 | `part-3` | Published |
 | 4 | [The Alert That Could Never Fire](https://dev.to/ndcodes/part-4-the-alert-that-could-never-fire-3434) | 4 Nov 2026 | `part-4` | Published |
 | 5 | [The Control That Protected an Empty Bucket](https://dev.to/ndcodes/part-5-the-control-that-protected-an-empty-bucket-e1j) | 11 Nov 2026 | `part-5` | Published |
-| 6 | The Walkthrough That Only Worked on My Machine | 18 Nov 2026 | `part-6` | Planned |
+| 6 | [The Walkthrough That Only Worked on My Machine](https://dev.to/ndcodes/part-6-the-walkthrough-that-only-worked-on-my-machine-15e8) | 18 Nov 2026 | `part-6` | Published |
 | 7 | Where AI fits, and where it doesn't | 25 Nov 2026 | `part-7` | Planned |
 
 ## How to follow along
