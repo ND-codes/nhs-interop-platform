@@ -26,14 +26,22 @@ route:
     - matchers: [severity="critical"]
       receiver: pager
 
+# send_resolved defaults to false for email_configs, so the first night of
+# alert delivery sent FIRING mail and nothing afterwards. From an inbox, an
+# incident that is over looks identical to one still running: the mail just
+# stops. pagerduty_configs and webhook_configs default to true; email is the
+# odd one out.
 receivers:
   - name: default
     email_configs:
       - to: 'interop-oncall@nhs-interop.example'
+        send_resolved: true
   - name: pager
-    # pagerduty_configs: [...] — wire up with a real routing key in prod.
+    # pagerduty_configs: [...] wire up with a real routing key in prod. That
+    # one already defaults to send_resolved: true, so it needs no such line.
     email_configs:
       - to: 'interop-pager@nhs-interop.example'
+        send_resolved: true
 
 inhibit_rules:
   - source_matchers: [severity="critical"]

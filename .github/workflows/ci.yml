@@ -1,5 +1,6 @@
 # Every change walks through these checks before it lands on master.
-# Ported from .gitlab-ci.yml, which still describes the GitLab pipeline.
+# Ported from the original .gitlab-ci.yml, which was deleted in Part 5 because
+# it could never run on a GitHub repository.
 #
 # Tool versions are pinned on purpose. A security job that silently stops
 # checking is worse than no job at all, and a floating "latest" tag is how
@@ -163,6 +164,28 @@ jobs:
       - name: Run the alert rule tests
         working-directory: observability/prometheus
         run: ../../promtool test rules alerts_test.yml
+
+  # The quickstart, run as a test. Every other job here reads the code; this
+  # one starts all nine services and walks the documented tour, so the
+  # quickstart cannot quietly stop being true. Its first real run, in Part 6,
+  # failed on a bug that had passed every static check.
+  # The PDS stub is the Compose default, so no secrets or NHS sandbox access.
+  walkthrough:
+    name: walkthrough
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Start the stack
+        run: make demo
+      - name: Walk the tour
+        run: make walkthrough
+      - name: Service logs, if the tour failed
+        if: failure()
+        run: docker compose logs --no-color --tail=100
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
 
   iac-scan:
     name: iac scan
