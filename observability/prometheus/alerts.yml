@@ -19,6 +19,16 @@ groups:
           runbook: "docs/runbook.md#1-transformlatencyhigh"
 
       # --- Traffic (low / dropped) -------------------------------------------
+      # On a demo stack left idle this fires after 15 minutes and emails you.
+      # That is the rule working: from inside Prometheus an idle demo and a
+      # dead upstream look the same. Silence it in Alertmanager if you leave
+      # the stack running (runbook section 5).
+      #
+      # A second clause, "and some traffic in the last 24 hours", was drafted
+      # for Part 7 and rejected. It did not stop the demo emails, because the
+      # demo had traffic earlier the same day, and it made the rule go silent
+      # once an outage passed 24 hours, and never fire for a pipeline that had
+      # carried nothing since deployment. alerts_test.yml holds both cases.
       - alert: IngestNoTraffic
         expr: sum(rate(http_requests_total{service="ingest",handler="/hl7"}[10m])) == 0
         for: 15m
@@ -124,3 +134,52 @@ groups:
         annotations:
           summary: "A dead-lettered message has outlived the retention window"
           runbook: "docs/runbook.md#9-dlqmessagespastretention"
+
+      # Every rule above this point watches a rate, a ratio or a gauge. All of
+      # them share one blind spot: a service that is down exports nothing, so
+      # its rates go to zero or its series disappear, and a rule that tests for
+      # "too much" of something stops firing exactly when things are worst.
+      #
+      # Raised by two readers of Part 4. It is also the general form of the bug
+      # Part 4 was about: PDSCircuitOpen watched a series no service exported,
+      # so it could never fire. These three rules watch for absence itself.
+
+      - alert: ServiceDown
+        expr: up{job=~"ingest|transform|pds-client"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: interop
+        annotations:
+          summary: "{{ $labels.job }} has been unreachable for 2 minutes"
+          runbook: "docs/runbook.md#10-servicedown"
+
+      # up{} only exists for a target Prometheus still knows about. If a target
+      # is removed from the configuration, or never loaded, `up` disappears and
+      # ServiceDown above goes silent too. absent() is what catches that.
+      - alert: ServiceTargetMissing
+        expr: |
+          absent(up{job="ingest"})
+          or absent(up{job="transform"})
+          or absent(up{job="pds-client"})
+        for: 10m
+        labels:
+          severity: critical
+          team: interop
+        annotations:
+          summary: "A pipeline service is missing from Prometheus entirely, not just down"
+          runbook: "docs/runbook.md#11-servicetargetmissing"
+
+      # The literal guard against the Part 4 defect recurring. PDSCircuitOpen
+      # watched pybreaker_state for two months while no service exported it.
+      # If that gauge ever stops being exported again, this fires instead of
+      # the pipeline going quietly unmonitored.
+      - alert: BreakerMetricAbsent
+        expr: absent(pybreaker_state{name="pds"})
+        for: 10m
+        labels:
+          severity: warning
+          team: interop
+        annotations:
+          summary: "pybreaker_state is not being exported, so PDSCircuitOpen cannot fire"
+          runbook: "docs/runbook.md#12-breakermetricabsent"

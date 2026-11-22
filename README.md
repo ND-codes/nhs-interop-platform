@@ -5,20 +5,27 @@
 ![Kubernetes](https://img.shields.io/badge/kubernetes-1.29-326CE5)
 ![FHIR](https://img.shields.io/badge/FHIR-R4-orange)
 
-> HL7 v2 to FHIR R4 interoperability service on AWS, with NHS Spine PDS lookup.
-> Built as a production-shaped reference implementation of the integration patterns used inside NHS trusts running vendor EPRs (Cerner Millennium, Dedalus Lorenzo/ORBIS U) on AWS.
+> An HL7 v2 to FHIR R4 interoperability service with an NHS PDS lookup, that runs on a laptop.
+> A small, working version of the layer NHS trusts need between hospital systems and national services, built in public over a seven-part series. Production-shaped, not production-ready: see the known limitations in [CHANGELOG.md](CHANGELOG.md).
 
 ![Architecture](docs/architecture.svg)
 
+## Start here
+
+Pick the line that sounds like you.
+
+- New to health tech and want to try it: follow the quick start below, then [QUICKSTART.md](QUICKSTART.md), which has you break the system on purpose and watch the alert arrive. You need Docker and `make`. No NHS account, no cloud account, synthetic test data only.
+- Switching careers into tech or health tech: read [the seven articles](blog/README.md) in order. Each one is a real defect, how it was found and how it was fixed, which is what interviews ask about.
+- Experienced engineer: [docs/architecture.md](docs/architecture.md), then [docs/ai-usage.md](docs/ai-usage.md) for how this was built and where each defect came from.
+- Funding or buying health tech: the known limitations in [CHANGELOG.md](CHANGELOG.md) and "Claimed, not built" in [docs/security.md](docs/security.md). They say plainly what this does not do, which is the question worth asking of any system.
+
 ## Why this exists
 
-NHS trusts running vendor EPRs emit HL7 v2 natively, but the rest of the NHS ecosystem (Spine, FDP, NHS App, analytics) speaks FHIR. Every trust therefore needs an interoperability layer that translates HL7 v2 into FHIR, enriches with authoritative national data (PDS), and exposes a FHIR-compliant REST API. This repository is a small, production-shaped implementation of exactly that layer: runnable locally with one `docker compose up`, deployable to AWS EKS with Terraform, delivered through GitLab CI and ArgoCD, observed with Prometheus and Grafana.
-
-It is deliberately scoped to be read and understood in a 10-minute interview walkthrough.
+NHS trusts running vendor EPRs emit HL7 v2 natively, but national NHS services are moving to FHIR. Every trust therefore needs an interoperability layer that translates HL7 v2 into FHIR, enriches it with national data (PDS), and exposes a FHIR REST API. This repository is a small implementation of that layer: runnable locally with `make demo`, checked by GitHub Actions on every pull request, observed with Prometheus and Grafana, and with Terraform for AWS EKS that has been validated but never applied.
 
 ## Blog series
 
-I'm writing a seven-part series about this project on dev.to, one article every two weeks from October 2026. The index, the drafts and the planned dates are in [blog/](blog/README.md).
+A seven-part series about this project on dev.to, published weekly from October to November 2026. The index and the drafts are in [blog/](blog/README.md).
 
 ## Quick start
 
@@ -28,8 +35,8 @@ Requires Docker 24+ and `make`.
 git clone https://github.com/ND-codes/nhs-interop-platform.git
 cd nhs-interop-platform
 cp .env.example .env.local
-make demo               # builds and starts all services
-./scripts/send-adt.sh   # sends a sample ADT^A01 to the ingest service
+make demo          # builds and starts all nine services
+make walkthrough   # sends sample messages and checks every step works
 ```
 
 Then open:
@@ -37,15 +44,12 @@ Then open:
 - FHIR REST API: <http://localhost:8080/fhir/Patient>
 - Grafana: <http://localhost:3000> (admin / admin)
 - Prometheus: <http://localhost:9090>
+- Mail inbox, where alerts arrive: <http://localhost:8025>
 - Ingest service: <http://localhost:8000/docs>
-- Transform service: <http://localhost:8001/docs>
-- PDS client: <http://localhost:8002/docs>
 
-You should see the Patient resource appear in HAPI FHIR within a second, and traffic light up on the Grafana dashboard.
+`make walkthrough` runs eight checks and stops at the first one that fails. The same checks run in CI on every pull request.
 
-See `docs/` for the full architecture, runbook, security model and HL7→FHIR mapping. 
-
-For the longer walkthrough, see [QUICKSTART.md](QUICKSTART.md).
+See `docs/` for the full architecture, runbook, security model and HL7→FHIR mapping. For the longer walkthrough, including breaking it on purpose, see [QUICKSTART.md](QUICKSTART.md).
 
 
 ## Screenshots
@@ -91,10 +95,11 @@ For the longer walkthrough, see [QUICKSTART.md](QUICKSTART.md).
 ├── tests/            # unit, integration, reconciliation
 ├── docs/             # architecture, HL7/FHIR mapping, security, runbook
 ├── blog/             # blog series index and drafts
-├── scripts/          # helper scripts (send-adt.sh, reconcile.sh)
+├── scripts/          # helper scripts (send-adt.sh, walkthrough.sh, break-pds.sh)
+├── .github/workflows/ # CI: lint, tests, scans, alert rules, the walkthrough
 ├── docker-compose.yml
 ├── Makefile
-└── .gitlab-ci.yml
+└── CHANGELOG.md
 ```
 
 ## Roadmap

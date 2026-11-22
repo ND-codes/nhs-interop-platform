@@ -42,7 +42,9 @@ Written in the first person on purpose. I've seen too many "post-mortems" buried
 
 **Circuit breaker on PDS from day one.** The instinct under time pressure is to "just make it work" and worry about resilience later. PDS is an external dependency I don't control — NHS sandbox environments have outages, rate limits, and authentication rollovers. Putting `pybreaker` in from the start meant I got the fail-open behaviour for free, and the decision *"what does the pipeline do when PDS is down"* was answered in code before it was ever asked in anger.
 
-**Terraform `default_tags` at the provider level.** Every resource inherits `Project`, `Environment`, `Owner`, `DataClass=patient-identifiable`. That last tag is how a DSPT auditor can trace patient data through the account: `aws resourcegroupstaggingapi get-resources --tag-filters Key=DataClass,Values=patient-identifiable` returns everything that needs extra scrutiny. One tag, one audit query, two lines of Terraform.
+**Terraform `default_tags` at the provider level.** Every taggable resource inherits `Project`, `Environment`, `Owner`, `DataClass=patient-identifiable`. That last tag is how a DSPT auditor can trace patient data through the account: `aws resourcegroupstaggingapi get-resources --tag-filters Key=DataClass,Values=patient-identifiable` returns everything that needs extra scrutiny. One tag, one audit query, a few lines of Terraform.
+
+Worth recording that this paragraph was false for most of the project's life. The provider block holding those tags was commented out, and `DataClass` appeared exactly once in `infra/terraform`, inside that comment, while this document described the benefit in the present tense. Part 5 found it and put the block back. Note also that several resources here take no `tags` argument at all, including `aws_kms_alias` and the S3 bucket sub-resources, so the accurate claim is every taggable resource rather than every resource.
 
 ### What didn't work first time
 

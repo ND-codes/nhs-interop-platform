@@ -25,13 +25,39 @@ fail() { printf '      FAIL %s\n' "$1" >&2; exit 1; }
 # Retry because HAPI FHIR indexes asynchronously and Prometheus scrapes on a
 # 10 second interval. Without this the tour is flaky in a way that reads as a
 # broken pipeline.
+#
+# The first real run of this script failed at check 3 for 30 seconds over a
+# query HAPI had rejected with HTTP 400 on the first try. `curl -sf` hid the
+# status, so the retry looked like waiting. Now each attempt leaves its reason
+# in /tmp/wt-why, a timeout reports the last one, and a 4xx stops at once,
+# because asking the same wrong question again cannot succeed.
 wait_for() {
-  local what=$1 tries=$2 cmd=$3 i
+  local what=$1 tries=$2 cmd=$3 i rc
+  : > /tmp/wt-why
   for ((i = 1; i <= tries; i++)); do
-    if eval "$cmd" >/dev/null 2>&1; then return 0; fi
+    rc=0
+    eval "$cmd" >/dev/null 2>&1 || rc=$?
+    [ "$rc" -eq 0 ] && return 0
+    [ "$rc" -eq 2 ] && fail "$what: $(cat /tmp/wt-why)"
     sleep 2
   done
-  fail "$what did not become true within $((tries * 2))s"
+  fail "$what did not become true within $((tries * 2))s. Last attempt: $(cat /tmp/wt-why 2>/dev/null || echo 'no detail')"
+}
+
+# A FHIR search that must return at least one resource. Returns 0 on a match,
+# 1 to retry, 2 to stop: a 4xx is a malformed query, not a slow server.
+fhir_has() {
+  local url=$1 code
+  code=$(curl -s -o /tmp/wt-fhir -w '%{http_code}' "$url") || code=000
+  case "$code" in
+    200) ;;
+    4??) echo "HTTP $code from $url" > /tmp/wt-why; return 2 ;;
+    *)   echo "HTTP $code from $url" > /tmp/wt-why; return 1 ;;
+  esac
+  # Parsed rather than grepped: the Bundle's whitespace is not guaranteed, and
+  # a grep for "total" would also match a zero.
+  python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get("total", 0) > 0 else 1)' < /tmp/wt-fhir \
+    || { echo "HTTP 200 from $url, but no matching resource yet" > /tmp/wt-why; return 1; }
 }
 
 say "The stack is running"
@@ -51,16 +77,14 @@ esac
 
 say "The Patient reaches FHIR, keyed on the NHS number"
 query="$FHIR/Patient?identifier=https://fhir.nhs.uk/Id/nhs-number%7C$NHS_NUMBER"
-# Parsed rather than grepped: the Bundle's whitespace is not guaranteed, and a
-# grep for "total" would also match a zero.
-wait_for "the Patient" 15 "curl -sf '$query' | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get(\"total\", 0) > 0 else 1)'"
+wait_for "the Patient" 15 "fhir_has '$query'"
 ok "found at $query"
 
 say "A lab result produces Observations"
 curl -sf -o /dev/null -X POST "$INGEST/hl7" \
   --data-binary @tests/fixtures/hl7/oru_r01.hl7 -H 'Content-Type: text/plain' \
   || fail "ingest rejected the ORU message"
-wait_for "an Observation" 15 "curl -sf '$FHIR/Observation' | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get(\"total\", 0) > 0 else 1)'"
+wait_for "an Observation" 15 "fhir_has '$FHIR/Observation'"
 ok "Observations present"
 
 say "Prometheus is scraping every service"

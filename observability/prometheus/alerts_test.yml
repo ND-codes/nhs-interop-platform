@@ -172,3 +172,156 @@ tests:
       - eval_time: 20m
         alertname: DLQMessagesPastRetention
         exp_alerts: []
+
+  # --- the absence rules, added in Part 7 ---
+
+  - interval: 1m
+    name: a service that stops responding is reported down
+    input_series:
+      - series: 'up{job="transform"}'
+        values: "1x5 0x10"
+      - series: 'up{job="ingest"}'
+        values: "1x15"
+      - series: 'up{job="pds-client"}'
+        values: "1x15"
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: ServiceDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              team: interop
+              job: transform
+            exp_annotations:
+              summary: "transform has been unreachable for 2 minutes"
+              runbook: "docs/runbook.md#10-servicedown"
+
+  - interval: 1m
+    name: all three healthy is silent
+    input_series:
+      - series: 'up{job="ingest"}'
+        values: "1x20"
+      - series: 'up{job="transform"}'
+        values: "1x20"
+      - series: 'up{job="pds-client"}'
+        values: "1x20"
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: ServiceDown
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: ServiceTargetMissing
+        exp_alerts: []
+
+  # This is the case ServiceDown cannot cover. A target removed from the
+  # configuration has no up series at all, so up == 0 never matches.
+  - interval: 1m
+    name: a target missing from Prometheus entirely is caught by absent
+    input_series:
+      - series: 'up{job="ingest"}'
+        values: "1x20"
+      - series: 'up{job="transform"}'
+        values: "1x20"
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: ServiceDown
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: ServiceTargetMissing
+        exp_alerts:
+          # absent() returns a series carrying the matcher's own labels, so the
+          # alert names the missing service without any extra work.
+          - exp_labels:
+              severity: critical
+              team: interop
+              job: pds-client
+            exp_annotations:
+              summary: "A pipeline service is missing from Prometheus entirely, not just down"
+              runbook: "docs/runbook.md#11-servicetargetmissing"
+
+  # The state this repository was in for two months: the rule existed and the
+  # series did not.
+  - interval: 1m
+    name: a breaker gauge nobody exports is caught
+    input_series:
+      - series: 'up{job="transform"}'
+        values: "1x20"
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: BreakerMetricAbsent
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              team: interop
+              name: pds
+            exp_annotations:
+              summary: "pybreaker_state is not being exported, so PDSCircuitOpen cannot fire"
+              runbook: "docs/runbook.md#12-breakermetricabsent"
+
+  - interval: 1m
+    name: an exported breaker gauge is silent
+    input_series:
+      - series: 'pybreaker_state{name="pds"}'
+        values: "0x20"
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: BreakerMetricAbsent
+        exp_alerts: []
+
+  # --- IngestNoTraffic ---
+  # Part 7 drafted a 24 hour traffic clause to quiet idle demo stacks, and
+  # rejected it: these first two cases are what it would have broken.
+
+  # A pipeline that has carried nothing since it started is the
+  # misconfigured-from-day-one case, and it must alert.
+  - interval: 1m
+    name: a stack that has never carried traffic alerts
+    input_series:
+      - series: 'http_requests_total{service="ingest",handler="/hl7"}'
+        values: "0x120"
+    alert_rule_test:
+      - eval_time: 60m
+        alertname: IngestNoTraffic
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              team: interop
+            exp_annotations:
+              summary: "ingest has not received an HL7 message for 15 minutes"
+              runbook: "docs/runbook.md#5-ingestnotraffic"
+
+  # The longer the outage, the more it matters that the alert is still there.
+  # Traffic stops at minute 60; at 1600 the pipeline has been silent for over
+  # 25 hours.
+  - interval: 1m
+    name: an outage longer than a day is still alerting
+    input_series:
+      - series: 'http_requests_total{service="ingest",handler="/hl7"}'
+        values: "0+10x60 600x1600"
+    alert_rule_test:
+      - eval_time: 1600m
+        alertname: IngestNoTraffic
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              team: interop
+            exp_annotations:
+              summary: "ingest has not received an HL7 message for 15 minutes"
+              runbook: "docs/runbook.md#5-ingestnotraffic"
+
+  # A real pipeline going quiet: traffic earlier in the day, none now.
+  - interval: 1m
+    name: a pipeline that carried traffic and then stopped does alert
+    input_series:
+      - series: 'http_requests_total{service="ingest",handler="/hl7"}'
+        values: "0+10x60 600x60"
+    alert_rule_test:
+      - eval_time: 100m
+        alertname: IngestNoTraffic
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              team: interop
+            exp_annotations:
+              summary: "ingest has not received an HL7 message for 15 minutes"
+              runbook: "docs/runbook.md#5-ingestnotraffic"

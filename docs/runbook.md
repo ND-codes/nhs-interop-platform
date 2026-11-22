@@ -53,7 +53,21 @@ Link: `docs/runbook.md#2-pdscircuitopen`
 
 **Mitigation.** None is required for patient safety — the breaker is doing its job. Communicate to stakeholders that enriched records from the affected window will need replay once PDS recovers.
 
-**Post-incident.** Replay the DLQ window from S3 against the pipeline once PDS is green. Add a "delta" job if this happens frequently.
+**Post-incident.** Replay the dead-letter window against the pipeline once PDS is green. Add a "delta" job if this happens frequently. Note that the dead-letter path is local, not S3: see `docs/security.md`.
+
+**Two things worth knowing once this alert reaches a human.**
+
+The breaker does not close on its own. pybreaker only attempts a reset on the
+next call, so after `reset_timeout` has passed the breaker stays open until
+traffic arrives. On an idle stack the alert keeps firing after PDS is healthy
+again. `make restore-pds` waits out the timeout and then sends three synthetic
+ADT messages for exactly this reason.
+
+Until Part 7 there was no resolution email either. `send_resolved` defaults to
+false for `email_configs`, unlike `pagerduty_configs` and `webhook_configs`,
+so Alertmanager sent FIRING mail and then nothing. From an inbox an incident
+that is over looks identical to one still running: the mail simply stops. Both
+receivers now set `send_resolved: true`.
 
 ---
 
@@ -120,6 +134,25 @@ Link: `docs/runbook.md#5-ingestnotraffic`
 3. `kubectl -n interop describe networkpolicy` — did anything change in the last 24h?
 
 **Mitigation.** If it's the trust, acknowledge the alert and wait. If it's us, revert the NetworkPolicy change.
+
+**On a local demo stack.** Leave `make demo` running with nothing sending
+messages and this fires after 15 minutes, then emails the Mailpit inbox at
+<http://localhost:8025>. That is expected: from inside Prometheus an idle demo
+and a dead upstream look the same. To quiet it for a working session:
+
+```bash
+docker compose exec alertmanager amtool silence add alertname=IngestNoTraffic \
+  --duration=8h --comment="idle demo stack" --alertmanager.url=http://localhost:9093
+```
+
+Or stop the stack with `make down` when you are done.
+
+**Why the rule has no "traffic in the last 24 hours" clause.** One was drafted
+in Part 7 to quiet idle demo stacks, and rejected after testing it against a
+live stack. It did not stop the demo emails, because the stack had carried
+traffic earlier the same day. Worse, it would have stopped alerting once an
+outage passed 24 hours, and would never have fired for a pipeline that carried
+nothing from the day it was deployed. `alerts_test.yml` asserts both.
 
 ---
 
@@ -234,6 +267,100 @@ service starts. A stack that dead-letters nothing and never restarts keeps its
 oldest message past the window, and this alert is what tells you so. The fix
 is not a bigger prune, it is moving retention to the storage layer, where it
 runs whether or not the application does.
+
+## 10. `ServiceDown`
+
+Link: `docs/runbook.md#10-servicedown`
+
+**What it means.** Prometheus scraped `ingest`, `transform` or `pds-client`
+and got nothing, for two minutes.
+
+**Why it is here.** Every other rule in this file watches a rate, a ratio or a
+gauge. A service that is down exports none of those, so its rates fall to zero
+and the rules that test for too much of something go quiet exactly when things
+are worst. Raised by two readers after Part 4.
+
+**Triage.**
+
+1. `docker compose ps` locally, or `kubectl -n interop get pods`.
+2. `docker compose logs <service> --tail=200`. A crash loop usually shows an
+   import error or a failed health check.
+3. <http://localhost:9090/targets> shows which target is failing and why.
+
+**Mitigation.** Restart the service. If it crash-loops, the pipeline degrades
+differently depending on which one is down: ingest down means messages are
+refused at the door and nothing is lost in flight; transform down means ingest
+returns 202 and the message is gone, because the hop is synchronous HTTP;
+pds-client down means enrichment fails open, which is the designed behaviour.
+
+**Related.** `ServiceTargetMissing` below covers the case this rule cannot see.
+
+---
+
+## 11. `ServiceTargetMissing`
+
+Link: `docs/runbook.md#11-servicetargetmissing`
+
+**What it means.** One of the three services is absent from Prometheus
+altogether, rather than present and failing.
+
+**Why it is here.** `up` only exists for a target Prometheus knows about. If a
+job is removed from `prometheus.yml`, or a relabelling rule drops it, or the
+file never loaded, there is no `up` series at all and `ServiceDown` cannot
+match, because `up == 0` needs an `up` to compare. `absent()` is what notices
+that a series has stopped existing.
+
+**Triage.**
+
+1. <http://localhost:9090/targets>. A job you expect and cannot see is the
+   answer.
+2. Check `observability/prometheus/prometheus.yml` for the missing
+   `scrape_configs` entry.
+3. `docker compose restart prometheus` after a configuration change, or use
+   the reload endpoint if it is enabled.
+
+**Mitigation.** Restore the scrape config. Until then that service is
+unmonitored, and so is everything downstream of it.
+
+**Note on the labels.** Given a selector, `absent()` derives the output labels
+from that selector, so the alert names the missing job without any extra
+templating. That holds for a selector argument only: wrap it in an aggregation
+such as `absent(sum(up{job="ingest"}))` and the result carries no labels at
+all, which would make this alert unable to say which service is missing.
+
+---
+
+## 12. `BreakerMetricAbsent`
+
+Link: `docs/runbook.md#12-breakermetricabsent`
+
+**What it means.** `pybreaker_state{name="pds"}` is not being exported, so
+`PDSCircuitOpen` cannot fire.
+
+**Why it is here.** This is the literal guard against the defect Part 4 was
+about. `PDSCircuitOpen` was written in the first week and watched a gauge no
+service exported, so for two months it was a rule that could never fire and
+looked exactly like a rule that was never needed. If that gauge ever stops
+being exported again, this fires instead of the pipeline going quietly
+unmonitored.
+
+**Triage.**
+
+1. `curl -s localhost:8001/metrics | grep pybreaker` should show the gauge.
+2. If it is missing, check that `_BreakerStateExporter` is still registered as
+   a listener on `pds_breaker` in `services/transform/main.py`.
+3. Check that transform started cleanly. The gauge is set once at startup and
+   then by the listener.
+
+**Mitigation.** Restore the export. Treat `PDSCircuitOpen` as unmonitored
+until the gauge is back, because it is.
+
+**The general lesson.** Any alert whose expression names a specific metric
+should have a companion that fires when that metric disappears. Otherwise the
+alert's silence is ambiguous: it means either nothing is wrong or nothing is
+being measured, and those need different responses.
+
+---
 
 ## A note on these links
 
