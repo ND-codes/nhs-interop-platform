@@ -87,19 +87,50 @@ curl -sf -o /dev/null -X POST "$INGEST/hl7" \
 wait_for "an Observation" 15 "fhir_has '$FHIR/Observation'"
 ok "Observations present"
 
+# Retried like checks 3 and 4. Until Prometheus has scraped a target once, its
+# health reads "unknown", which on a stack started seconds ago is not a fault.
+# This check failed CI once for exactly that reason: in CI checks 3 and 4 pass
+# quickly, so it can run before the first scrape. 30 seconds is three scrapes.
+#
+# It also requires the three pipeline jobs to be present. The first version
+# only asked whether any target was unhealthy, and right after Prometheus
+# starts the target list is empty, so "nothing is down" was trivially true.
+targets_up() {
+  curl -sf "$PROM/api/v1/targets" -o /tmp/wt-targets \
+    || { echo "Prometheus is not answering on $PROM" > /tmp/wt-why; return 1; }
+  python3 - /tmp/wt-targets > /tmp/wt-why <<'PY'
+import json, sys
+targets = json.load(open(sys.argv[1]))["data"]["activeTargets"]
+jobs = {t["labels"].get("job", "?") for t in targets}
+missing = [f"{j} is not a target yet" for j in ("ingest", "transform", "pds-client") if j not in jobs]
+bad = missing + [
+    f'{t["labels"].get("job", "?")} is {t["health"]}'
+    + (f' ({t["lastError"]})' if t.get("lastError") else "")
+    for t in targets
+    if t["health"] != "up"
+]
+print("; ".join(bad))
+sys.exit(1 if bad else 0)
+PY
+}
+
+alertmanagers_found() {
+  curl -sf "$PROM/api/v1/alertmanagers" -o /tmp/wt-am \
+    || { echo "Prometheus is not answering on $PROM" > /tmp/wt-why; return 1; }
+  python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin)["data"]["activeAlertmanagers"] else 1)' < /tmp/wt-am \
+    || { echo "Prometheus has no active Alertmanager. Check the alerting block in observability/prometheus/prometheus.yml" > /tmp/wt-why; return 1; }
+}
+
 say "Prometheus is scraping every service"
-down=$(curl -sf "$PROM/api/v1/targets" \
-  | python3 -c 'import json,sys; d=json.load(sys.stdin)["data"]["activeTargets"]; print(" ".join(t["labels"].get("job","?") for t in d if t["health"]!="up"))')
-[ -z "$down" ] || fail "targets not up: $down"
+wait_for "every target up" 15 "targets_up"
 ok "all targets up"
 
 # This is the step that did not exist before Part 6. Prometheus evaluated every
 # rule and notified nobody, because it had no alerting block and nothing ran an
 # Alertmanager. A rule that is Firing in a UI is not an alert.
 say "Prometheus knows where to send an alert"
-discovered=$(curl -sf "$PROM/api/v1/alertmanagers" \
-  | python3 -c 'import json,sys; print(len(json.load(sys.stdin)["data"]["activeAlertmanagers"]))')
-[ "$discovered" -ge 1 ] || fail "Prometheus has no active Alertmanager. Check the alerting block in observability/prometheus/prometheus.yml"
+wait_for "an Alertmanager" 15 "alertmanagers_found"
+discovered=$(python3 -c 'import json,sys; print(len(json.load(sys.stdin)["data"]["activeAlertmanagers"]))' < /tmp/wt-am)
 ok "$discovered Alertmanager discovered"
 
 say "Alertmanager is up and holding its config"
