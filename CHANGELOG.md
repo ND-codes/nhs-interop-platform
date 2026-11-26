@@ -7,6 +7,20 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Each `part-N` tag marks the code as it stood when that article was published.
 Dates are the publication dates.
 
+## [Unreleased]
+
+### Fixed
+
+- `make walkthrough` checks 5 and 6 ran once and gave up. In CI, checks 3 and
+  4 pass quickly, so check 5 could run before Prometheus had scraped
+  `ingest`, and the `master` build for 1.0.0 failed on that race. Run straight
+  after a Prometheus restart, check 6 failed the same way. Both checks now
+  retry for up to 30 seconds, and a timeout names the target and Prometheus's
+  own error for it.
+- Check 5 also passed on an empty target list. Right after Prometheus starts
+  it has discovered no targets, and "no target is down" was trivially true. It
+  now requires the `ingest`, `transform` and `pds-client` jobs to be present.
+
 ## [1.0.0] - 2026-11-25
 
 The end of the seven-part build-in-public series. 1.0.0 marks a complete,
@@ -44,6 +58,14 @@ before deploying anything.
   email.
 - `docs/lessons-learnt.md` corrects a `default_tags` claim that was false for
   most of the project's life.
+
+### Fixed
+
+- Every shell script was stored without the executable bit, so `make
+  walkthrough`, `break-pds`, `restore-pds`, `break-fhir` and `restore-fhir`
+  failed with "Permission denied" on any Linux or macOS clone. Git Bash on
+  Windows ignores the bit, which hid it. Found by the `walkthrough` CI job on
+  its first run.
 
 ## [0.6.0] - 2026-11-18 (`part-6`)
 
@@ -163,6 +185,7 @@ These are deliberate and documented rather than oversights.
 
 `docs/security.md` holds the full "Claimed, not built" list.
 
+[Unreleased]: https://github.com/ND-codes/nhs-interop-platform/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/ND-codes/nhs-interop-platform/releases/tag/v1.0.0
 [0.6.0]: https://github.com/ND-codes/nhs-interop-platform/releases/tag/part-6
 [0.5.0]: https://github.com/ND-codes/nhs-interop-platform/releases/tag/part-5
